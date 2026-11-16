@@ -76,8 +76,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.StickyNote2
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import id.tinta.app.data.Chapter
+import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.TintaStore
+import id.tinta.app.ui.components.ReadAloudDialog
+import id.tinta.app.ui.theme.TintaPalettes
+import id.tinta.app.util.Tesaurus
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.IconAction
 import id.tinta.app.ui.components.MarkdownPreview
@@ -93,6 +105,7 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     store: TintaStore,
@@ -100,6 +113,8 @@ fun EditorScreen(
     onBack: () -> Unit,
     onHistory: () -> Unit,
     onOpenChapter: (String) -> Unit,
+    initialPanel: String? = null,
+    onLore: (String) -> Unit = {},
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -136,6 +151,13 @@ fun EditorScreen(
     var showToc by remember { mutableStateOf(false) }
     var sprintLeft by remember { mutableStateOf(0L) }
     var sprintRunning by remember { mutableStateOf(false) }
+    var showType by remember { mutableStateOf(false) }
+    var showNotes by remember { mutableStateOf(false) }
+    var showRead by remember { mutableStateOf(false) }
+    var noteQuote by remember { mutableStateOf<String?>(null) }
+    var noteDraft by remember { mutableStateOf("") }
+    var loreCard by remember { mutableStateOf<LoreEntry?>(null) }
+    var typing by remember { mutableStateOf(false) }
     val undoStack = remember(chapterId) { mutableStateListOf<String>() }
     val redoStack = remember(chapterId) { mutableStateListOf<String>() }
     var lastEditAt by remember(chapterId) { mutableStateOf(0L) }
@@ -184,6 +206,21 @@ fun EditorScreen(
         while (isActive) {
             delay(120_000)
             store.snapshotIfChanged(chapterId)
+        }
+    }
+
+    LaunchedEffect(initialPanel) {
+        when (initialPanel) {
+            "typography" -> showType = true
+            "notes" -> showNotes = true
+            "read" -> showRead = true
+        }
+    }
+
+    LaunchedEffect(typing) {
+        if (typing) {
+            delay(2500)
+            typing = false
         }
     }
 
@@ -236,6 +273,21 @@ fun EditorScreen(
 
     val words = Text.wordCount(value.text)
     val saved = value.text == chapter.body
+    val selStart = min(value.selection.start, value.selection.end).coerceIn(0, value.text.length)
+    val selEnd = max(value.selection.start, value.selection.end).coerceIn(0, value.text.length)
+    val selectedText = if (selEnd > selStart) value.text.substring(selStart, selEnd) else ""
+    val synonyms = if (selectedText.isNotBlank() && selectedText.length <= 40) {
+        Tesaurus.synonyms(context, selectedText)
+    } else {
+        emptyList()
+    }
+    val matchingLore = if (selectedText.isNotBlank()) {
+        data.lore.firstOrNull {
+            it.bookId == chapter.bookId && it.name.equals(selectedText.trim(), ignoreCase = true)
+        }
+    } else {
+        null
+    }
     val status = if (saved) "Tersimpan" else "Menyimpan…"
 
     Scaffold(
@@ -251,6 +303,7 @@ fun EditorScreen(
                     onBack()
                 },
                 actions = {
+                    IconAction(Icons.Default.FormatSize, "Cepat tata letak") { showType = true }
                     IconAction(Icons.AutoMirrored.Filled.Undo, "Urungkan") { undo() }
                     IconAction(Icons.AutoMirrored.Filled.Redo, "Ulangi") { redo() }
                     IconAction(Icons.AutoMirrored.Filled.List, "Daftar isi") { showToc = true }
@@ -359,6 +412,35 @@ fun EditorScreen(
                                 onClick = {
                                     menu = false
                                     shareText(context, title, value.text)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Catatan pinggir (${data.notes.count { it.chapterId == chapterId && !it.resolved }})",
+                                        color = colors.ink,
+                                    )
+                                },
+                                leadingIcon = { Icon(Icons.Default.StickyNote2, null, tint = colors.muted) },
+                                onClick = {
+                                    menu = false
+                                    showNotes = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Baca nyaring", color = colors.ink) },
+                                leadingIcon = { Icon(Icons.Default.VolumeUp, null, tint = colors.muted) },
+                                onClick = {
+                                    menu = false
+                                    showRead = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Story Bible", color = colors.ink) },
+                                leadingIcon = { Icon(Icons.Default.Person, null, tint = colors.muted) },
+                                onClick = {
+                                    menu = false
+                                    onLore(chapter.bookId)
                                 },
                             )
                             DropdownMenuItem(
@@ -535,7 +617,10 @@ fun EditorScreen(
                 ) {
                 BasicTextField(
                     value = value,
-                    onValueChange = { next -> applyEdit(next) },
+                    onValueChange = { next ->
+                        typing = true
+                        applyEdit(next)
+                    },
                     textStyle = TextStyle(
                         fontFamily = when (data.settings.font) {
                             "sans" -> FontFamily.SansSerif
@@ -570,7 +655,67 @@ fun EditorScreen(
                 }
             }
 
-            if (!focusMode && !preview) {
+            if (selectedText.isNotBlank() && !preview && !focusMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.accentSoft)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "“${selectedText.trim().take(22)}”",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
+                    synonyms.take(3).forEach { word ->
+                        Text(
+                            word,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.accent,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colors.bg)
+                                .clickable {
+                                    value = value.copy(
+                                        text = value.text.replaceRange(selStart, selEnd, word),
+                                        selection = TextRange(selStart + word.length),
+                                    )
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                    if (matchingLore != null) {
+                        Text(
+                            "Kartu ${matchingLore.name}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.accent,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colors.bg)
+                                .clickable { loreCard = matchingLore }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                    Text(
+                        "Catatan",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.ink,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(colors.bg)
+                            .clickable {
+                                noteQuote = selectedText.trim()
+                                noteDraft = ""
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+            }
+
+            if (!focusMode && !preview && !typing) {
                 FormatBar(
                     markdown = chapter.markdown,
                     onWrap = { before, after ->
@@ -696,6 +841,252 @@ fun EditorScreen(
             },
         )
     }
+
+    if (showType) {
+        ModalBottomSheet(
+            onDismissRequest = { showType = false },
+            containerColor = colors.surface,
+        ) {
+            Column(Modifier.padding(start = 22.dp, end = 22.dp, bottom = 28.dp)) {
+                Text("Tata letak", style = MaterialTheme.typography.titleLarge, color = colors.ink)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Perubahan langsung terlihat pada naskah di belakang panel ini.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.muted,
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Ukuran huruf · ${data.settings.fontSize.toInt()}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.ink,
+                )
+                Slider(
+                    value = data.settings.fontSize,
+                    onValueChange = { size -> store.updateSettings { it.copy(fontSize = size) } },
+                    valueRange = 14f..30f,
+                    colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent),
+                )
+                Text(
+                    "Jarak baris · ${String.format(Locale("id", "ID"), "%.2f", data.settings.lineHeight)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.ink,
+                )
+                Slider(
+                    value = data.settings.lineHeight,
+                    onValueChange = { height -> store.updateSettings { it.copy(lineHeight = height) } },
+                    valueRange = 1.2f..2.4f,
+                    colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("Jenis huruf", style = MaterialTheme.typography.labelLarge, color = colors.ink)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("serif" to "Serif", "sans" to "Sans", "mono" to "Mono").forEach { (key, label) ->
+                        StyleChip(
+                            label = label,
+                            selected = data.settings.font == key,
+                            onClick = { store.updateSettings { it.copy(font = key) } },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("Tema", style = MaterialTheme.typography.labelLarge, color = colors.ink)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TintaPalettes.forEach { palette ->
+                        Column(
+                            Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(palette.bg)
+                                .clickable { store.updateSettings { it.copy(theme = palette.key) } }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                palette.key.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = palette.ink,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Contoh paragraf. Ia melangkah pelan ke arah jendela, menghitung setiap " +
+                        "ketukan hujan yang jatuh di kusen.",
+                    style = TextStyle(
+                        fontFamily = when (data.settings.font) {
+                            "sans" -> FontFamily.SansSerif
+                            "mono" -> FontFamily.Monospace
+                            else -> FontFamily.Serif
+                        },
+                        fontSize = data.settings.fontSize.sp,
+                        lineHeight = (data.settings.fontSize * data.settings.lineHeight).sp,
+                    ),
+                    color = colors.ink,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.bg)
+                        .padding(14.dp),
+                )
+            }
+        }
+    }
+
+    if (showNotes) {
+        val notes = data.notes.filter { it.chapterId == chapterId }.sortedByDescending { it.createdAt }
+        AlertDialog(
+            onDismissRequest = { showNotes = false },
+            containerColor = colors.surface,
+            titleContentColor = colors.ink,
+            title = { Text("Catatan pinggir", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    if (notes.isEmpty()) {
+                        Text(
+                            "Blok satu kalimat di naskah, lalu ketuk Catatan pada bilah kuning untuk " +
+                                "menempelkan catatan revisi tanpa mengubah teks utama.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.muted,
+                        )
+                    }
+                    notes.forEach { note ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(colors.bg)
+                                .padding(10.dp),
+                        ) {
+                            if (note.quote.isNotBlank()) {
+                                Text(
+                                    "“${note.quote.take(80)}”",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.muted,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            Text(
+                                note.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (note.resolved) colors.muted else colors.ink,
+                            )
+                            Row {
+                                Text(
+                                    if (note.resolved) "Buka lagi" else "Tandai selesai",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.accent,
+                                    modifier = Modifier
+                                        .clickable { store.toggleNote(note.id) }
+                                        .padding(end = 16.dp, top = 6.dp),
+                                )
+                                Text(
+                                    "Hapus",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.danger,
+                                    modifier = Modifier
+                                        .clickable { store.deleteNote(note.id) }
+                                        .padding(top = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNotes = false }) { Text("Tutup", color = colors.muted) }
+            },
+        )
+    }
+
+    noteQuote?.let { quote ->
+        AlertDialog(
+            onDismissRequest = { noteQuote = null },
+            containerColor = colors.surface,
+            titleContentColor = colors.ink,
+            title = { Text("Catatan pinggir", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column {
+                    Text(
+                        "“${quote.take(90)}”",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    TintaTextField(
+                        value = noteDraft,
+                        onValueChange = { noteDraft = it },
+                        label = "Catatan revisi",
+                        placeholder = "Cek lagi logika adegan ini",
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        store.addNote(chapterId, quote, noteDraft)
+                        noteDraft = ""
+                        noteQuote = null
+                    },
+                    enabled = noteDraft.isNotBlank(),
+                ) {
+                    Text("Simpan", color = if (noteDraft.isNotBlank()) colors.accent else colors.muted)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { noteQuote = null }) { Text("Batal", color = colors.muted) }
+            },
+        )
+    }
+
+    loreCard?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { loreCard = null },
+            containerColor = colors.surface,
+            titleContentColor = colors.ink,
+            title = { Text(entry.name, style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column {
+                    Text(
+                        LoreEntry.kindLabel(entry.kind),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        entry.summary.ifBlank { "Belum ada ringkasan untuk kartu ini." },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.ink,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { loreCard = null }) { Text("Tutup", color = colors.muted) }
+            },
+        )
+    }
+
+    if (showRead) {
+        ReadAloudDialog(text = value.text, onDismiss = { showRead = false })
+    }
+}
+
+@Composable
+private fun StyleChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalTintaColors.current
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = if (selected) colors.accent else colors.muted,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) colors.accentSoft else colors.bg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+    )
 }
 
 @Composable

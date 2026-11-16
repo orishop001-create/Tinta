@@ -133,3 +133,28 @@ debug APK and source archive on push.
   folder (`Android/data/id.tinta.app/files/cadangan`) on every `onStop`, keeping the three newest
   copies. No storage permission and no SAF dialog is needed, and Settings mentions it next to the
   manual backup row.
+
+## 2026-11-16 — Sisa blueprint tanpa server
+
+- **Story Bible**: `LoreEntry` cards (karakter/lokasi/istilah) per book, `LoreScreen` from the book
+  menu, and a profile card reachable from the editor.
+- **Note pinggir**: `MarginNote` quotes a selection without touching the manuscript; menu badge,
+  resolve/delete, and a yellow context pill when text is selected.
+- **Cepat tata letak**: an `Aa` action opens a bottom sheet with font size, line height, typeface,
+  theme, and a live sample.
+- **Progressive disclosure**: format bars hide while typing and return after a short pause; selection
+  shows the contextual pill (tesaurus, comment, character card).
+- **Baca nyaring**: on-device `TextToSpeech` with per-word highlight (no audio leaves the device).
+- **Tesaurus offline**: bundled `assets/tesaurus.json`, original pairs, no licence issue.
+- **Kunci aplikasi**: `BiometricPrompt` + device PIN gate on launch (`Settings.lock`), enabled from
+  Settings after a successful check.
+- **Cadangan terenkripsi**: PBKDF2-HMAC-SHA256 (150k rounds) + AES-GCM, written as `.tintaenc`.
+- **Folder cadangan**: SAF tree picker stored in `Settings.backupFolder`; every `onStop` writes the
+  backup there so Drive/Syncthing syncs it, plus the app folder copies.
+- **Naskah per bab**: bodies live in `tinta-naskah.db` (SQLite via `SQLiteOpenHelper`), the JSON keeps
+  metadata only, so a keystroke no longer rewrites the whole library.
+- **Drag-and-drop**: a hold-and-drag handle in every chapter row calls `reorderChapters`.
+- **PDF siap cetak**: 54pt print margins and centred page numbers on every page.
+- **Rilis**: `signingConfig` from `keystore.properties` (ignored) and `.github/workflows/release.yml`
+  building a signed release APK per tag, uploaded to GitHub Releases.
+- **Urutan frasa cepat**: `movePhrase` exposed as ‹ › next to each chip.

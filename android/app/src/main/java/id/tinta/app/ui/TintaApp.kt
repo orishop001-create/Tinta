@@ -30,6 +30,7 @@ import id.tinta.app.ui.screens.EditorScreen
 import id.tinta.app.ui.screens.FeaturesScreen
 import id.tinta.app.ui.screens.HistoryScreen
 import id.tinta.app.ui.screens.LibraryScreen
+import id.tinta.app.ui.screens.LoreScreen
 import id.tinta.app.ui.screens.SearchScreen
 import id.tinta.app.ui.screens.SettingsScreen
 import id.tinta.app.ui.screens.StatsScreen
@@ -148,16 +149,26 @@ fun TintaApp(store: TintaStore) {
                     onExportPdf = { exportBook(id, pdf = true) },
                     onExportEpub = { exportEpub(id) },
                     onExportDocx = { exportDocx(id) },
+                    onLore = { nav.navigate("lore/$id") },
                 )
             }
             composable(
-                "editor/{id}",
-                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                "editor/{id}?panel={panel}",
+                arguments = listOf(
+                    navArgument("id") { type = NavType.StringType },
+                    navArgument("panel") {
+                        type = NavType.StringType
+                        defaultValue = "none"
+                    },
+                ),
             ) { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
+                val panel = entry.arguments?.getString("panel")?.takeIf { it != "none" }
                 EditorScreen(
                     store = store,
                     chapterId = id,
+                    initialPanel = panel,
+                    onLore = { bookId -> nav.navigate("lore/$bookId") },
                     onBack = { nav.popBackStack() },
                     onHistory = { nav.navigate("history/$id") },
                     onOpenChapter = { nextId ->
@@ -172,6 +183,17 @@ fun TintaApp(store: TintaStore) {
                             nav.navigate("editor/$nextId") { launchSingleTop = true }
                         }
                     },
+                )
+            }
+            composable(
+                "lore/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            ) { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                LoreScreen(
+                    store = store,
+                    bookId = id,
+                    onBack = { nav.popBackStack() },
                 )
             }
             composable(

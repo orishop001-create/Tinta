@@ -14,7 +14,7 @@ object Export {
 
     private const val PAGE_WIDTH = 595
     private const val PAGE_HEIGHT = 842
-    private const val MARGIN = 46f
+    private const val MARGIN = 54f
 
     fun orderGroups(book: Book, chapters: List<Chapter>): List<Pair<Volume?, List<Chapter>>> {
         val alive = chapters.filter { it.deletedAt == null }.sortedBy { it.order }
@@ -74,7 +74,16 @@ object Export {
         var canvas = page.canvas
         var y = MARGIN + 12f
 
+        fun footer() {
+            paint.typeface = Typeface.DEFAULT
+            paint.textSize = 9f
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("$pageNumber", PAGE_WIDTH / 2f, PAGE_HEIGHT - MARGIN / 2, paint)
+            paint.textAlign = Paint.Align.LEFT
+        }
+
         fun nextPage() {
+            footer()
             document.finishPage(page)
             pageNumber += 1
             page = document.startPage(
@@ -166,6 +175,7 @@ object Export {
             }
         }
 
+        footer()
         document.finishPage(page)
         val out = ByteArrayOutputStream()
         document.writeTo(out)

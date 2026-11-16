@@ -1,5 +1,6 @@
 package id.tinta.app.ui.screens
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,9 +29,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,8 +54,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.tinta.app.data.TintaStore
+import id.tinta.app.util.AppLock
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.PrimaryButton
 import id.tinta.app.ui.components.SecondaryButton
@@ -74,6 +82,11 @@ fun SettingsScreen(
     var importText by remember { mutableStateOf<String?>(null) }
     var backupText by remember { mutableStateOf("") }
     var phraseDraft by remember { mutableStateOf("") }
+    var encryptedText by remember { mutableStateOf<ByteArray?>(null) }
+    var passwordFor by remember { mutableStateOf<String?>(null) }
+    var password by remember { mutableStateOf("") }
+    var pendingImport by remember { mutableStateOf<ByteArray?>(null) }
+    val activity = context as? FragmentActivity
     val trashCount = data.chapters.count { it.deletedAt != null }
 
     val backupLauncher = rememberLauncherForActivityResult(
@@ -104,6 +117,51 @@ fun SettingsScreen(
                     Toast.makeText(context, "Gagal membaca berkas.", Toast.LENGTH_SHORT).show()
                 }
         }
+    }
+
+    val encryptedLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val bytes = encryptedText
+        encryptedText = null
+        if (uri == null || bytes == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+        }.onSuccess {
+            store.markBackupDone()
+            Toast.makeText(context, "Cadangan terenkripsi tersimpan.", Toast.LENGTH_SHORT).show()
+        }.onFailure {
+            Toast.makeText(context, "Gagal menyimpan berkas.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val encryptedImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.onSuccess { bytes ->
+            pendingImport = bytes
+            password = ""
+            passwordFor = "import"
+        }.onFailure {
+            Toast.makeText(context, "Gagal membaca berkas.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val folderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        store.updateSettings { it.copy(backupFolder = uri.toString()) }
+        Toast.makeText(context, "Folder cadangan disimpan.", Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -286,7 +344,7 @@ fun SettingsScreen(
                     Text("Frasa cepat", style = MaterialTheme.typography.titleMedium, color = colors.ink)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Ketuk frasa untuk menghapusnya dari bilah editor.",
+                        "Geser urutan dengan ‹ ›, hapus dengan ×.",
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.muted,
                     )
@@ -296,21 +354,107 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         settings.phrases.forEach { phrase ->
-                            Box(
-                                Modifier
+                            Row(
+                                modifier = Modifier
                                     .clip(CircleShape)
                                     .background(colors.bg)
-                                    .clickable { store.removePhrase(phrase) }
-                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                                    .padding(start = 10.dp, end = 2.dp, top = 3.dp, bottom = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
                                     phrase,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = colors.ink,
                                 )
+                                Text(
+                                    "‹",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.muted,
+                                    modifier = Modifier
+                                        .clickable { store.movePhrase(phrase, -1) }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                )
+                                Text(
+                                    "›",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.muted,
+                                    modifier = Modifier
+                                        .clickable { store.movePhrase(phrase, 1) }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                )
+                                Text(
+                                    "×",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.danger,
+                                    modifier = Modifier
+                                        .clickable { store.removePhrase(phrase) }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                )
                             }
                         }
                     }
+                }
+            }
+
+            item { SectionLabel("Keamanan") }
+            item {
+                SettingCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.Lock,
+                            contentDescription = null,
+                            tint = colors.accent,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Kunci aplikasi", style = MaterialTheme.typography.titleMedium, color = colors.ink)
+                            Text(
+                                "Sidik jari atau PIN perangkat diminta setiap Tinta dibuka.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.muted,
+                            )
+                        }
+                        Switch(
+                            checked = settings.lock,
+                            onCheckedChange = { next ->
+                                when {
+                                    !next -> store.updateSettings { it.copy(lock = false) }
+                                    !AppLock.isAvailable(context) -> Toast.makeText(
+                                        context,
+                                        "Perangkat ini belum punya sidik jari atau PIN.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    activity == null -> Toast.makeText(
+                                        context,
+                                        "Kunci belum bisa diaktifkan di layar ini.",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    else -> AppLock.prompt(
+                                        activity = activity,
+                                        onSuccess = {
+                                            store.updateSettings { it.copy(lock = true) }
+                                            Toast.makeText(context, "Kunci aplikasi aktif.", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onError = { reason ->
+                                            Toast.makeText(context, reason, Toast.LENGTH_SHORT).show()
+                                        },
+                                    )
+                                }
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = colors.accent),
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Naskah mentah tidak pernah dienkripsi otomatis supaya pencarian tetap instan; " +
+                            "berkas cadangan yang kamu ekspor bisa dikunci dengan kata sandi.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
                 }
             }
 
@@ -360,6 +504,70 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SecondaryButton(
+                            "Cadangan terenkripsi",
+                            onClick = {
+                                password = ""
+                                passwordFor = "export"
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        SecondaryButton(
+                            "Buka .tintaenc",
+                            onClick = { encryptedImportLauncher.launch(arrayOf("*/*")) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { folderLauncher.launch(null) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Folder cadangan otomatis",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.ink,
+                            )
+                            Text(
+                                if (settings.backupFolder == null) {
+                                    "Pilih folder Drive, Syncthing, atau penyimpanan HP."
+                                } else {
+                                    "Setiap aplikasi ditutup, cadangan ditulis ke folder ini."
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.muted,
+                            )
+                        }
+                        Text(
+                            if (settings.backupFolder == null) "Pilih" else "Ganti",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.accent,
+                        )
+                    }
+                    if (settings.backupFolder != null) {
+                        Text(
+                            "Cadangkan ke folder sekarang",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.accent,
+                            modifier = Modifier
+                                .clickable {
+                                    val ok = store.backupToUserFolder()
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Cadangan ditulis ke folder pilihan." else "Folder tidak bisa ditulis.",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                .padding(vertical = 8.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -386,7 +594,7 @@ fun SettingsScreen(
             item { SectionLabel("Tentang") }
             item {
                 SettingCard {
-                    Text("Tinta 1.0.0", style = MaterialTheme.typography.titleMedium, color = colors.ink)
+                    Text("Tinta 1.1.0", style = MaterialTheme.typography.titleMedium, color = colors.ink)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Editor menulis lokal-first. Dibangun ulang secara clean-room dengan Kotlin dan Jetpack Compose. Tidak ada WebView, akun, analitik, atau permintaan jaringan.",
@@ -395,7 +603,10 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Data disimpan sebagai JSON di penyimpanan privat aplikasi. Tidak ada enkripsi atau kunci aplikasi; itu tidak akan memberi keamanan nyata di perangkat yang tidak aman.",
+                        "Metadata disimpan sebagai JSON di penyimpanan privat aplikasi, sedangkan badan naskah " +
+                            "disimpan per bab di SQLite agar naskah raksasa tetap ringan dibuka. Kunci aplikasi " +
+                            "memakai sidik jari/PIN perangkat, dan cadangan bisa dienkripsi AES-GCM dengan kata " +
+                            "sandi yang hanya kamu yang tahu.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.muted,
                     )
@@ -444,6 +655,82 @@ fun SettingsScreen(
                         Toast.makeText(context, it.message ?: "Berkas cadangan tidak valid.", Toast.LENGTH_LONG).show()
                     }
                 importText = null
+            },
+        )
+    }
+
+    passwordFor?.let { mode ->
+        AlertDialog(
+            onDismissRequest = {
+                passwordFor = null
+                pendingImport = null
+                password = ""
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.ink,
+            title = {
+                Text(
+                    if (mode == "export") "Cadangan terenkripsi" else "Buka cadangan terenkripsi",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Buat kata sandi yang kuat. Tanpa kata sandi ini, berkas tidak bisa dibuka lagi.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.muted,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    TintaTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Kata sandi",
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val pass = password
+                        val pending = pendingImport
+                        passwordFor = null
+                        pendingImport = null
+                        password = ""
+                        if (mode == "export") {
+                            encryptedText = store.exportEncrypted(pass)
+                            encryptedLauncher.launch("tinta-cadangan.tintaenc")
+                        } else if (pending != null) {
+                            store.importEncrypted(pending, pass)
+                                .onSuccess {
+                                    store.markBackupDone()
+                                    Toast.makeText(context, "Cadangan dipulihkan.", Toast.LENGTH_SHORT).show()
+                                }
+                                .onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        it.message ?: "Kata sandi salah atau berkas rusak.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                        }
+                    },
+                    enabled = password.length >= 6,
+                ) {
+                    Text(
+                        if (mode == "export") "Cadangkan" else "Pulihkan",
+                        color = if (password.length >= 6) colors.accent else colors.muted,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    passwordFor = null
+                    pendingImport = null
+                    password = ""
+                }) {
+                    Text("Batal", color = colors.muted)
+                }
             },
         )
     }

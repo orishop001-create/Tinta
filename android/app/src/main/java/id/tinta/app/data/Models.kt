@@ -50,6 +50,43 @@ data class DayStat(
     val words: Int,
 )
 
+/** Satu kartu di Story Bible: karakter, lokasi, atau istilah dunia cerita. */
+@Serializable
+data class LoreEntry(
+    val id: String,
+    val bookId: String,
+    val kind: String = KIND_CHARACTER,
+    val name: String,
+    val summary: String = "",
+    val createdAt: Long,
+    val updatedAt: Long,
+) {
+    companion object {
+        const val KIND_CHARACTER = "karakter"
+        const val KIND_PLACE = "lokasi"
+        const val KIND_TERM = "istilah"
+        val kinds = listOf(KIND_CHARACTER, KIND_PLACE, KIND_TERM)
+
+        fun kindLabel(kind: String): String = when (kind) {
+            KIND_PLACE -> "Lokasi"
+            KIND_TERM -> "Istilah"
+            else -> "Karakter"
+        }
+    }
+}
+
+/** Catatan pinggir untuk satu kutipan; teks utama tidak ikut diubah. */
+@Serializable
+data class MarginNote(
+    val id: String,
+    val bookId: String,
+    val chapterId: String,
+    val quote: String = "",
+    val body: String,
+    val createdAt: Long,
+    val resolved: Boolean = false,
+)
+
 @Serializable
 data class Settings(
     val theme: String = "kertas",
@@ -62,6 +99,8 @@ data class Settings(
     val chapterGoal: Int = 1000,
     val typewriter: Boolean = false,
     val lastBackupAt: Long = 0L,
+    val lock: Boolean = false,
+    val backupFolder: String? = null,
 )
 
 @Serializable
@@ -72,4 +111,6 @@ data class AppData(
     val snapshots: List<Snapshot> = emptyList(),
     val daily: List<DayStat> = emptyList(),
     val settings: Settings = Settings(),
+    val lore: List<LoreEntry> = emptyList(),
+    val notes: List<MarginNote> = emptyList(),
 )

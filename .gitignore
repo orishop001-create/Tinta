@@ -4,3 +4,7 @@ artifacts/
 *.local
 .DS_Store
 .toolchain/
+android/keystore.properties
+*.jks
+*.keystore
+android/.kotlin/

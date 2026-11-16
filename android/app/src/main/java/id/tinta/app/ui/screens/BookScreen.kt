@@ -2,6 +2,7 @@ package id.tinta.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -43,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +75,7 @@ fun BookScreen(
     onExportPdf: () -> Unit,
     onExportEpub: () -> Unit,
     onExportDocx: () -> Unit,
+    onLore: () -> Unit = {},
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -106,6 +111,19 @@ fun BookScreen(
     val groups = book.volumes.map { volume ->
         volume to chapters.filter { it.volumeId == volume.id }
     } + (null to chapters.filter { it.volumeId == null || book.volumes.none { volume -> volume.id == it.volumeId } })
+
+    fun reorder(chapterId: String, delta: Int) {
+        val ordered = data.chapters
+            .filter { it.bookId == book.id && it.deletedAt == null }
+            .sortedBy { it.order }
+        val index = ordered.indexOfFirst { it.id == chapterId }
+        val target = index + delta
+        if (index < 0 || target !in ordered.indices) return
+        val ids = ordered.map { it.id }.toMutableList()
+        val moved = ids.removeAt(index)
+        ids.add(target, moved)
+        store.reorderChapters(book.id, ids)
+    }
 
     Scaffold(
         containerColor = colors.bg,
@@ -156,6 +174,13 @@ fun BookScreen(
                                 onClick = {
                                     showMenu = false
                                     onExportDocx()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Story Bible", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onLore()
                                 },
                             )
                             DropdownMenuItem(
@@ -267,6 +292,7 @@ fun BookScreen(
                                 },
                                 onDelete = { deleteChapter = chapter },
                                 onFeatures = onFeatures,
+                                onReorder = { delta -> reorder(chapter.id, delta) },
                             )
                         }
                     }
@@ -385,6 +411,7 @@ private fun ChapterRow(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onFeatures: () -> Unit,
+    onReorder: (Int) -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var menu by remember { mutableStateOf(false) }
@@ -394,9 +421,33 @@ private fun ChapterRow(
             .clip(RoundedCornerShape(12.dp))
             .background(colors.surface)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, top = 13.dp, bottom = 13.dp, end = 4.dp),
+            .padding(start = 6.dp, top = 13.dp, bottom = 13.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            Icons.Default.DragHandle,
+            contentDescription = "Tahan dan geser untuk mengubah urutan bab",
+            tint = colors.border,
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .size(22.dp)
+                .pointerInput(chapter.id) {
+                    val step = 74.dp.toPx()
+                    var dragged = 0f
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { dragged = 0f },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            dragged += amount.y
+                            val steps = (dragged / step).toInt()
+                            if (steps != 0) {
+                                dragged -= steps * step
+                                onReorder(steps)
+                            }
+                        },
+                    )
+                },
+        )
         Column(Modifier.weight(1f)) {
             Text(
                 chapter.title.ifBlank { "Tanpa judul" },

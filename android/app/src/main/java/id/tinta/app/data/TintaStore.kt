@@ -1,7 +1,10 @@
 package id.tinta.app.data
 
 import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.util.AtomicFile
+import id.tinta.app.util.Crypto
 import id.tinta.app.util.Text
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +22,15 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 class TintaStore(context: Context) {
+    companion object {
+        const val BACKUP_FILE_NAME = "tinta-cadangan.json"
+    }
+
+    private val appContext = context.applicationContext
     private val file = File(context.filesDir, "tinta.json")
     private val backupDir: File? = context.getExternalFilesDir("cadangan")
+    private val chapterDb = ChapterDb(context)
+    private val dirtyBodies = linkedSetOf<String>()
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -36,28 +46,53 @@ class TintaStore(context: Context) {
     private fun load(): AppData {
         if (!file.exists()) {
             val seeded = Seed.create()
+            chapterDb.putAll(seeded.chapters)
             saveNow(seeded)
             return seeded
         }
-        return try {
+        val parsed = try {
             json.decodeFromString(AppData.serializer(), file.readText())
         } catch (_: Exception) {
             runCatching { file.copyTo(File(file.parentFile, "tinta-rusak.json"), overwrite = true) }
             val seeded = Seed.create()
+            chapterDb.putAll(seeded.chapters)
             saveNow(seeded)
-            seeded
+            return seeded
         }
+
+        // Cadangan lama masih menyimpan badan naskah di JSON. Pindahkan sekali ke SQLite,
+        // lalu tulis ulang JSON tanpa badan naskah supaya berkasnya tetap ringkas.
+        val stored = chapterDb.bodies()
+        var legacyBodies = false
+        val chapters = parsed.chapters.map { chapter ->
+            val saved = stored[chapter.id]
+            when {
+                chapter.body.isNotBlank() -> {
+                    if (saved != chapter.body) chapterDb.put(chapter.id, chapter.body)
+                    legacyBodies = true
+                    chapter
+                }
+                saved != null -> chapter.copy(body = saved)
+                else -> chapter
+            }
+        }
+        val merged = parsed.copy(chapters = chapters)
+        if (legacyBodies) runCatching { saveNow(merged) }
+        return merged
     }
 
     private fun encode(data: AppData): String =
         json.encodeToString(AppData.serializer(), data)
+
+    private fun withoutBodies(data: AppData): AppData =
+        data.copy(chapters = data.chapters.map { it.copy(body = "") })
 
     private fun saveNow(data: AppData) {
         synchronized(writeLock) {
             val atomic = AtomicFile(file)
             val stream = atomic.startWrite()
             try {
-                stream.write(encode(data).toByteArray(Charsets.UTF_8))
+                stream.write(encode(withoutBodies(data)).toByteArray(Charsets.UTF_8))
                 atomic.finishWrite(stream)
             } catch (error: Exception) {
                 atomic.failWrite(stream)
@@ -70,13 +105,29 @@ class TintaStore(context: Context) {
         saveJob?.cancel()
         saveJob = scope.launch {
             delay(400)
-            runCatching { saveNow(_state.value) }
+            runCatching {
+                val snapshot = _state.value
+                val ids = synchronized(writeLock) {
+                    dirtyBodies.toList().also { dirtyBodies.clear() }
+                }
+                ids.forEach { id ->
+                    snapshot.chapters.firstOrNull { it.id == id }?.let { chapter ->
+                        chapterDb.put(chapter.id, chapter.body)
+                    }
+                }
+                saveNow(snapshot)
+            }
         }
     }
 
     fun flush() {
         saveJob?.cancel()
-        runCatching { synchronized(writeLock) { saveNow(_state.value) } }
+        runCatching {
+            val snapshot = _state.value
+            chapterDb.putAll(snapshot.chapters)
+            synchronized(writeLock) { dirtyBodies.clear() }
+            synchronized(writeLock) { saveNow(snapshot) }
+        }
     }
 
     fun update(transform: (AppData) -> AppData) {
@@ -142,11 +193,14 @@ class TintaStore(context: Context) {
                 books = data.books.filterNot { it.id == id },
                 chapters = data.chapters.filterNot { it.bookId == id },
                 snapshots = data.snapshots.filterNot { it.chapterId in chapterIds },
+                lore = data.lore.filterNot { it.bookId == id },
+                notes = data.notes.filterNot { it.bookId == id || it.chapterId in chapterIds },
                 settings = data.settings.copy(
                     lastDocId = data.settings.lastDocId?.takeIf { it !in chapterIds }
                 ),
             )
         }
+        chapterDb.delete(chapterIds)
     }
 
     fun addVolume(bookId: String, title: String) {
@@ -222,6 +276,7 @@ class TintaStore(context: Context) {
         val data = _state.value
         val chapter = chapterOf(data, id) ?: return
         if (chapter.body == body) return
+        synchronized(writeLock) { dirtyBodies.add(id) }
         val delta = (Text.wordCount(body) - Text.wordCount(chapter.body)).coerceAtLeast(0)
         val stamp = now()
         update { current ->
@@ -252,6 +307,107 @@ class TintaStore(context: Context) {
                 if (it.id == id) it.copy(volumeId = volumeId, updatedAt = now()) else it
             })
         }
+    }
+
+    /** Geser urutan bab sesuai daftar id yang sudah disusun pengguna. */
+    fun reorderChapters(bookId: String, orderedIds: List<String>) {
+        if (orderedIds.isEmpty()) return
+        val stamp = now()
+        val position = orderedIds.withIndex().associate { it.value to it.index }
+        update { data ->
+            data.copy(
+                chapters = data.chapters.map { chapter ->
+                    if (chapter.bookId == bookId && position.containsKey(chapter.id)) {
+                        chapter.copy(order = position.getValue(chapter.id), updatedAt = stamp)
+                    } else {
+                        chapter
+                    }
+                },
+                books = data.books.map {
+                    if (it.id == bookId) it.copy(updatedAt = stamp) else it
+                },
+            )
+        }
+    }
+
+    fun loreFor(bookId: String): List<LoreEntry> = _state.value.lore
+        .filter { it.bookId == bookId }
+        .sortedWith(compareBy({ it.kind }, { it.name.lowercase() }))
+
+    fun addLore(bookId: String, kind: String, name: String, summary: String): String {
+        val stamp = now()
+        val id = UUID.randomUUID().toString()
+        update { data ->
+            data.copy(
+                lore = data.lore + LoreEntry(
+                    id = id,
+                    bookId = bookId,
+                    kind = kind,
+                    name = name.ifBlank { "Tanpa nama" },
+                    summary = summary,
+                    createdAt = stamp,
+                    updatedAt = stamp,
+                ),
+            )
+        }
+        return id
+    }
+
+    fun updateLore(id: String, kind: String, name: String, summary: String) {
+        update { data ->
+            data.copy(
+                lore = data.lore.map { entry ->
+                    if (entry.id == id) entry.copy(
+                        kind = kind,
+                        name = name.ifBlank { entry.name },
+                        summary = summary,
+                        updatedAt = now(),
+                    ) else entry
+                },
+            )
+        }
+    }
+
+    fun deleteLore(id: String) {
+        update { data -> data.copy(lore = data.lore.filterNot { it.id == id }) }
+    }
+
+    fun notesFor(chapterId: String): List<MarginNote> = _state.value.notes
+        .filter { it.chapterId == chapterId }
+        .sortedByDescending { it.createdAt }
+
+    fun addNote(chapterId: String, quote: String, body: String): String? {
+        val chapter = chapterOf(_state.value, chapterId) ?: return null
+        if (body.isBlank()) return null
+        val stamp = now()
+        val id = UUID.randomUUID().toString()
+        update { data ->
+            data.copy(
+                notes = data.notes + MarginNote(
+                    id = id,
+                    bookId = chapter.bookId,
+                    chapterId = chapterId,
+                    quote = quote.trim(),
+                    body = body.trim(),
+                    createdAt = stamp,
+                ),
+            )
+        }
+        return id
+    }
+
+    fun toggleNote(id: String) {
+        update { data ->
+            data.copy(
+                notes = data.notes.map {
+                    if (it.id == id) it.copy(resolved = !it.resolved) else it
+                },
+            )
+        }
+    }
+
+    fun deleteNote(id: String) {
+        update { data -> data.copy(notes = data.notes.filterNot { it.id == id }) }
     }
 
     fun duplicateChapter(id: String): String? {
@@ -300,9 +456,11 @@ class TintaStore(context: Context) {
             data.copy(
                 chapters = data.chapters.filterNot { it.id == id },
                 snapshots = data.snapshots.filterNot { it.chapterId == id },
+                notes = data.notes.filterNot { it.chapterId == id },
                 settings = data.settings.copy(lastDocId = data.settings.lastDocId?.takeIf { it != id }),
             )
         }
+        chapterDb.delete(listOf(id))
     }
 
     fun openChapter(id: String) {
@@ -409,12 +567,35 @@ class TintaStore(context: Context) {
         updateSettings { settings -> settings.copy(phrases = settings.phrases - phrase) }
     }
 
+    fun movePhrase(phrase: String, delta: Int) {
+        updateSettings { settings ->
+            val list = settings.phrases.toMutableList()
+            val index = list.indexOf(phrase)
+            if (index < 0) {
+                settings
+            } else {
+                val target = (index + delta).coerceIn(0, list.lastIndex)
+                if (target == index) {
+                    settings
+                } else {
+                    list.removeAt(index)
+                    list.add(target, phrase)
+                    settings.copy(phrases = list)
+                }
+            }
+        }
+    }
+
     fun markBackupDone() {
         updateSettings { settings -> settings.copy(lastBackupAt = now()) }
     }
 
-    /** Simpan salinan JSON ke folder aplikasi setiap aplikasi ditutup, sisakan tiga terbaru. */
+    /**
+     * Setiap aplikasi ditutup: tulis satu cadangan ke folder pilihan pengguna (Drive,
+     * Syncthing, atau folder lokal), lalu simpan juga salinan di folder aplikasi.
+     */
     fun autoBackup(keep: Int = 3) {
+        runCatching { writeToUserFolder() }
         val dir = backupDir ?: return
         runCatching {
             dir.mkdirs()
@@ -430,21 +611,73 @@ class TintaStore(context: Context) {
         }
     }
 
+    /** Tulis cadangan terbaru ke folder yang dipilih lewat SAF. */
+    fun backupToUserFolder(): Boolean = runCatching { writeToUserFolder() }.getOrDefault(false)
+
+    private fun writeToUserFolder(): Boolean {
+        val folder = _state.value.settings.backupFolder?.let(Uri::parse) ?: return false
+        val resolver = appContext.contentResolver
+        val treeId = runCatching { DocumentsContract.getTreeDocumentId(folder) }.getOrNull() ?: return false
+        val directory = DocumentsContract.buildDocumentUriUsingTree(folder, treeId)
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(folder, treeId)
+        var existing: Uri? = null
+        runCatching {
+            resolver.query(
+                children,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                ),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) == BACKUP_FILE_NAME) {
+                        existing = DocumentsContract.buildDocumentUriUsingTree(folder, cursor.getString(0))
+                    }
+                }
+            }
+        }
+        val target = existing ?: DocumentsContract.createDocument(
+            resolver,
+            directory,
+            "application/json",
+            BACKUP_FILE_NAME,
+        ) ?: return false
+        val payload = exportJson().toByteArray(Charsets.UTF_8)
+        resolver.openOutputStream(target, "wt")?.use { it.write(payload) } ?: return false
+        markBackupDone()
+        return true
+    }
+
     fun exportJson(): String = json.encodeToString(
         AppData.serializer(),
         _state.value.copy(settings = _state.value.settings.copy(lastDocId = null))
     )
 
+    /** Cadangan terenkripsi: PBKDF2 + AES-GCM, seluruhnya di perangkat. */
+    fun exportEncrypted(password: String): ByteArray =
+        Crypto.encrypt(exportJson().toByteArray(Charsets.UTF_8), password.toCharArray())
+
+    fun importEncrypted(bytes: ByteArray, password: String): Result<Unit> = runCatching {
+        val plain = Crypto.decrypt(bytes, password.toCharArray()).toString(Charsets.UTF_8)
+        importJson(plain).getOrThrow()
+    }
+
     fun importJson(text: String): Result<Unit> = runCatching {
         val parsed = json.decodeFromString(AppData.serializer(), text)
         require(parsed.schema == 1) { "Versi cadangan tidak dikenal." }
         require(parsed.books.isNotEmpty() || parsed.chapters.isEmpty()) { "Cadangan tidak berisi buku." }
+        chapterDb.clear()
+        chapterDb.putAll(parsed.chapters)
         saveNow(parsed)
         _state.value = parsed
     }
 
     fun resetAll() {
         val empty = AppData(settings = Settings())
+        chapterDb.clear()
         saveNow(empty)
         _state.value = empty
     }
