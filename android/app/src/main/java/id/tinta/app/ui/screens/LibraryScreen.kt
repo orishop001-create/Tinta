@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -72,6 +73,7 @@ fun LibraryScreen(
     onSearch: () -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -151,6 +153,7 @@ fun LibraryScreen(
                         onClick = { onOpenBook(book.id) },
                         onEdit = { editing = book },
                         onDelete = { deleting = book },
+                        onFeatures = onFeatures,
                     )
                 }
             }
@@ -266,6 +269,7 @@ private fun BookRow(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var menu by remember { mutableStateOf(false) }
@@ -316,6 +320,14 @@ private fun BookRow(
                     onClick = {
                         menu = false
                         onEdit()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Semua fitur", color = colors.ink) },
+                    leadingIcon = { Icon(Icons.Default.Info, null, tint = colors.muted) },
+                    onClick = {
+                        menu = false
+                        onFeatures()
                     },
                 )
                 DropdownMenuItem(

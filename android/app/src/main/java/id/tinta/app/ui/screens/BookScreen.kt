@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -65,6 +66,7 @@ fun BookScreen(
     bookId: String,
     onBack: () -> Unit,
     onOpenChapter: (String) -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -122,6 +124,13 @@ fun BookScreen(
                                 onClick = {
                                     showMenu = false
                                     showAddVolume = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Semua fitur", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onFeatures()
                                 },
                             )
                             DropdownMenuItem(
@@ -225,6 +234,7 @@ fun BookScreen(
                                     store.duplicateChapter(chapter.id)?.let(onOpenChapter)
                                 },
                                 onDelete = { deleteChapter = chapter },
+                                onFeatures = onFeatures,
                             )
                         }
                     }
@@ -342,6 +352,7 @@ private fun ChapterRow(
     onMove: () -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var menu by remember { mutableStateOf(false) }
@@ -393,6 +404,14 @@ private fun ChapterRow(
                     onClick = {
                         menu = false
                         onDuplicate()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Semua fitur", color = colors.ink) },
+                    leadingIcon = { Icon(Icons.Default.Info, null, tint = colors.muted) },
+                    onClick = {
+                        menu = false
+                        onFeatures()
                     },
                 )
                 DropdownMenuItem(
