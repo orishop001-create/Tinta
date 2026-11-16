@@ -20,7 +20,9 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -69,6 +71,8 @@ enum class FeatureTarget {
     SETTINGS,
     EXPORT_MARKDOWN,
     EXPORT_PDF,
+    EXPORT_EPUB,
+    EXPORT_DOCX,
     SHARE_BOOK,
 }
 
@@ -83,6 +87,8 @@ val coreTiles = listOf(
     FeatureTile(Icons.Filled.Code, "Pratinjau Markdown", FeatureTarget.EDITOR),
     FeatureTile(Icons.Filled.Download, "Ekspor Markdown", FeatureTarget.EXPORT_MARKDOWN),
     FeatureTile(Icons.Filled.PictureAsPdf, "Ekspor PDF", FeatureTarget.EXPORT_PDF),
+    FeatureTile(Icons.Filled.Book, "Ekspor EPUB", FeatureTarget.EXPORT_EPUB),
+    FeatureTile(Icons.Filled.Description, "Ekspor DOCX", FeatureTarget.EXPORT_DOCX),
     FeatureTile(Icons.Filled.Share, "Bagikan buku", FeatureTarget.SHARE_BOOK),
     FeatureTile(Icons.Filled.FindReplace, "Cari & ganti", FeatureTarget.SEARCH),
     FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab", FeatureTarget.BOOK),

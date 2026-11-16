@@ -121,12 +121,38 @@ object Export {
             }
         }
 
-        drawParagraph(book.title.ifBlank { "Tanpa judul" }, 20f, true, 28f)
+        // Halaman judul + hak cipta
+        y += 60f
+        drawParagraph(book.title.ifBlank { "Tanpa judul" }, 24f, true, 34f)
+        drawParagraph("Tinta", 11f, false, 20f)
         if (book.tags.isNotEmpty()) {
-            drawParagraph(book.tags.joinToString(" · "), 10f, false, 22f)
+            drawParagraph(book.tags.joinToString(" · "), 10f, false, 18f)
         }
-        y += 6f
+        y += 14f
+        drawParagraph(
+            "Hak cipta © ${java.time.Year.now().value} ${book.title.ifBlank { "Tanpa judul" }}. " +
+                "Dibuat dengan Tinta dan disimpan di perangkat penulis.",
+            9f,
+            false,
+            14f,
+        )
 
+        // Daftar isi
+        nextPage()
+        drawParagraph("Daftar isi", 16f, true, 26f)
+        var entry = 0
+        orderGroups(book, chapters).forEach { (volume, items) ->
+            if (items.isEmpty()) return@forEach
+            if (volume != null) {
+                drawParagraph(volume.title.ifBlank { "Bagian" }, 11f, true, 20f)
+            }
+            items.forEach { chapter ->
+                entry += 1
+                drawParagraph("$entry. ${chapter.title.ifBlank { "Tanpa judul" }}", 11f, false, 18f)
+            }
+        }
+
+        nextPage()
         orderGroups(book, chapters).forEach { (volume, items) ->
             if (items.isEmpty()) return@forEach
             if (volume != null) {
@@ -146,4 +172,166 @@ object Export {
         document.close()
         return out.toByteArray()
     }
+
+    fun bookEpub(book: Book, chapters: List<Chapter>): ByteArray {
+        val pages = mutableListOf<Pair<String, String>>()
+        orderGroups(book, chapters).forEach { (volume, items) ->
+            if (items.isEmpty()) return@forEach
+            if (volume != null) {
+                val heading = volume.title.ifBlank { "Bagian" }
+                pages.add(heading to "<h1>${xml(heading)}</h1>")
+            }
+            items.forEach { chapter ->
+                val title = chapter.title.ifBlank { "Tanpa judul" }
+                val html = buildString {
+                    append("<h1>").append(xml(title)).append("</h1>")
+                    chapter.body.trim().split("\n").forEach { line ->
+                        if (line.isNotBlank()) append("<p>").append(xml(line.trim())).append("</p>")
+                    }
+                }
+                pages.add(title to html)
+            }
+        }
+        if (pages.isEmpty()) pages.add(book.title.ifBlank { "Tanpa judul" } to "<p></p>")
+
+        val names = pages.indices.map { "ch${it + 1}.xhtml" }
+        val out = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(out).use { zip ->
+            val mimetype = "application/epub+zip".toByteArray(Charsets.UTF_8)
+            val entry = java.util.zip.ZipEntry("mimetype").apply {
+                method = java.util.zip.ZipEntry.STORED
+                size = mimetype.size.toLong()
+                crc = java.util.zip.CRC32().apply { update(mimetype) }.value
+            }
+            zip.putNextEntry(entry)
+            zip.write(mimetype)
+            zip.closeEntry()
+
+            fun put(name: String, content: String) {
+                zip.putNextEntry(java.util.zip.ZipEntry(name))
+                zip.write(content.toByteArray(Charsets.UTF_8))
+                zip.closeEntry()
+            }
+
+            put(
+                "META-INF/container.xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                    "<container version=\"1.0\" " +
+                    "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">" +
+                    "<rootfiles><rootfile full-path=\"OEBPS/content.opf\" " +
+                    "media-type=\"application/oebps-package+xml\"/></rootfiles></container>",
+            )
+
+            val manifest = StringBuilder()
+            val spine = StringBuilder()
+            pages.forEachIndexed { index, page ->
+                val id = "p${index + 1}"
+                manifest.append("<item id=\"").append(id).append("\" href=\"").append(names[index])
+                    .append("\" media-type=\"application/xhtml+xml\"/>")
+                spine.append("<itemref idref=\"").append(id).append("\"/>")
+                put(
+                    "OEBPS/${names[index]}",
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"id\"><head>" +
+                        "<meta charset=\"utf-8\"/><title>${xml(page.first)}</title></head>" +
+                        "<body>${page.second}</body></html>",
+                )
+            }
+
+            val navItems = pages.indices.joinToString("") { index ->
+                "<li><a href=\"${names[index]}\">${xml(pages[index].first)}</a></li>"
+            }
+            put(
+                "OEBPS/nav.xhtml",
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"id\"><head>" +
+                    "<meta charset=\"utf-8\"/><title>Daftar isi</title></head><body>" +
+                    "<nav epub:type=\"toc\" xmlns:epub=\"http://www.idpf.org/2007/ops\">" +
+                    "<h1>Daftar isi</h1><ol>$navItems</ol></nav></body></html>",
+            )
+
+            put(
+                "OEBPS/content.opf",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                    "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" " +
+                    "unique-identifier=\"bookid\"><metadata " +
+                    "xmlns:dc=\"http://purl.org/dc/elements/1.1/\">" +
+                    "<dc:identifier id=\"bookid\">urn:uuid:${book.id}</dc:identifier>" +
+                    "<dc:title>${xml(book.title.ifBlank { "Tanpa judul" })}</dc:title>" +
+                    "<dc:language>id</dc:language><dc:creator>Tinta</dc:creator>" +
+                    "<meta property=\"dcterms:modified\">${java.time.Instant.now()}</meta>" +
+                    "</metadata><manifest>" +
+                    "<item id=\"nav\" href=\"nav.xhtml\" " +
+                    "media-type=\"application/xhtml+xml\" properties=\"nav\"/>" +
+                    manifest +
+                    "</manifest><spine>$spine</spine></package>",
+            )
+        }
+        return out.toByteArray()
+    }
+
+    fun bookDocx(book: Book, chapters: List<Chapter>): ByteArray {
+        val body = StringBuilder()
+        fun paragraph(text: String, bold: Boolean) {
+            body.append("<w:p><w:r>")
+            if (bold) body.append("<w:rPr><w:b/></w:rPr>")
+            body.append("<w:t xml:space=\"preserve\">").append(xml(text)).append("</w:t>")
+            body.append("</w:r></w:p>")
+        }
+
+        paragraph(book.title.ifBlank { "Tanpa judul" }, bold = true)
+        if (book.tags.isNotEmpty()) paragraph(book.tags.joinToString(" · "), bold = false)
+        orderGroups(book, chapters).forEach { (volume, items) ->
+            if (items.isEmpty()) return@forEach
+            if (volume != null) paragraph(volume.title.ifBlank { "Bagian" }, bold = true)
+            items.forEach { chapter ->
+                paragraph(chapter.title.ifBlank { "Tanpa judul" }, bold = true)
+                chapter.body.trim().split("\n").forEach { line ->
+                    if (line.isNotBlank()) paragraph(line.trim(), bold = false)
+                }
+            }
+        }
+
+        val out = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(out).use { zip ->
+            fun put(name: String, content: String) {
+                zip.putNextEntry(java.util.zip.ZipEntry(name))
+                zip.write(content.toByteArray(Charsets.UTF_8))
+                zip.closeEntry()
+            }
+
+            put(
+                "[Content_Types].xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                    "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
+                    "<Default Extension=\"rels\" " +
+                    "ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>" +
+                    "<Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
+                    "<Override PartName=\"/word/document.xml\" ContentType=\"application/" +
+                    "vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>",
+            )
+            put(
+                "_rels/.rels",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                    "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/" +
+                    "relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/" +
+                    "officeDocument/2006/relationships/officeDocument\" " +
+                    "Target=\"word/document.xml\"/></Relationships>",
+            )
+            put(
+                "word/document.xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                    "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+                    "<w:body>$body<w:sectPr/></w:body></w:document>",
+            )
+        }
+        return out.toByteArray()
+    }
+
+    private fun xml(value: String): String = value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
 }

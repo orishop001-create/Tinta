@@ -69,6 +69,8 @@ fun BookScreen(
     onFeatures: () -> Unit,
     onExportMarkdown: () -> Unit,
     onExportPdf: () -> Unit,
+    onExportEpub: () -> Unit,
+    onExportDocx: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -140,6 +142,20 @@ fun BookScreen(
                                 onClick = {
                                     showMenu = false
                                     onExportPdf()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ekspor buku (EPUB)", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onExportEpub()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ekspor buku (DOCX)", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onExportDocx()
                                 },
                             )
                             DropdownMenuItem(

@@ -116,3 +116,13 @@ debug APK and source archive on push.
   (tap a phrase to delete it, add via the editor dialog).
 - Settings now shows when the last JSON backup happened and warns after 7 days; a successful
   backup or restore stamps `lastBackupAt`.
+
+## 2026-11-16 — Batch 2 blueprint (penerbitan)
+
+- PDF export gained a title page, a copyright line and a table of contents before the chapters.
+- `Export.bookEpub` writes a valid EPUB 3 container by hand (stored `mimetype`, container.xml,
+  content.opf with manifest/spine, nav.xhtml and one XHTML per chapter) using only `java.util.zip`.
+- `Export.bookDocx` writes minimal OOXML (`[Content_Types].xml`, `_rels/.rels`,
+  `word/document.xml`) with bold headings, so Word/Google Docs open it without a library.
+- The book menu and the feature sheet expose Markdown, PDF, EPUB and DOCX through the system
+  create-document picker; nothing leaves the device.

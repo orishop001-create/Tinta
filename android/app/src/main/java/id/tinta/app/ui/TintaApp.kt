@@ -62,6 +62,14 @@ fun TintaApp(store: TintaStore) {
     val pdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf"),
     ) { uri -> writeExport(uri) }
+    val epubLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/epub+zip"),
+    ) { uri -> writeExport(uri) }
+    val docxLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+    ) { uri -> writeExport(uri) }
 
     fun chaptersOf(bookId: String) = data.chapters
         .filter { it.bookId == bookId && it.deletedAt == null }
@@ -78,6 +86,18 @@ fun TintaApp(store: TintaStore) {
             pendingExport = Export.bookMarkdown(book, chapters).toByteArray(Charsets.UTF_8)
             markdownLauncher.launch("$name.md")
         }
+    }
+
+    fun exportEpub(bookId: String) {
+        val book = data.books.firstOrNull { it.id == bookId } ?: return
+        pendingExport = Export.bookEpub(book, chaptersOf(bookId))
+        epubLauncher.launch("${Text.slugify(book.title)}.epub")
+    }
+
+    fun exportDocx(bookId: String) {
+        val book = data.books.firstOrNull { it.id == bookId } ?: return
+        pendingExport = Export.bookDocx(book, chaptersOf(bookId))
+        docxLauncher.launch("${Text.slugify(book.title)}.docx")
     }
 
     fun shareBook(bookId: String) {
@@ -126,6 +146,8 @@ fun TintaApp(store: TintaStore) {
                     onFeatures = { featureBookId = id },
                     onExportMarkdown = { exportBook(id, pdf = false) },
                     onExportPdf = { exportBook(id, pdf = true) },
+                    onExportEpub = { exportEpub(id) },
+                    onExportDocx = { exportDocx(id) },
                 )
             }
             composable(
@@ -229,6 +251,8 @@ fun TintaApp(store: TintaStore) {
                         FeatureTarget.SETTINGS -> nav.navigate("settings") { launchSingleTop = true }
                         FeatureTarget.EXPORT_MARKDOWN -> exportBook(sheetBookId, pdf = false)
                         FeatureTarget.EXPORT_PDF -> exportBook(sheetBookId, pdf = true)
+                        FeatureTarget.EXPORT_EPUB -> exportEpub(sheetBookId)
+                        FeatureTarget.EXPORT_DOCX -> exportDocx(sheetBookId)
                         FeatureTarget.SHARE_BOOK -> shareBook(sheetBookId)
                     }
                 },
