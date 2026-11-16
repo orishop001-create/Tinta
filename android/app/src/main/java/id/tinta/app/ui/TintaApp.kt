@@ -46,7 +46,6 @@ fun TintaApp(store: TintaStore) {
                     onSearch = { nav.navigate("search") },
                     onStats = { nav.navigate("stats") },
                     onSettings = { nav.navigate("settings") },
-                    onFeatures = { nav.navigate("features") },
                 )
             }
             composable(
@@ -62,7 +61,6 @@ fun TintaApp(store: TintaStore) {
                         store.openChapter(chapterId)
                         nav.navigate("editor/$chapterId")
                     },
-                    onFeatures = { nav.navigate("features") },
                 )
             }
             composable(

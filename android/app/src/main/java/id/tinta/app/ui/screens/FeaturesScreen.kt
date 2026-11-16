@@ -17,37 +17,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.AllInclusive
-import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FindReplace
-import androidx.compose.material.icons.filled.FormatLineSpacing
-import androidx.compose.material.icons.filled.FormatQuote
-import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.InsertChart
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.RestoreFromTrash
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Today
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -62,30 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import id.tinta.app.ui.components.FeatureTile
+import id.tinta.app.ui.components.coreTiles
+import id.tinta.app.ui.components.reasons
 import id.tinta.app.ui.theme.LocalTintaColors
 
-private data class FeatureTile(val icon: ImageVector, val label: String)
-
 private data class Highlight(val icon: ImageVector, val title: String, val body: String)
-
-private val coreTiles = listOf(
-    FeatureTile(Icons.Filled.Palette, "Empat tema kertas"),
-    FeatureTile(Icons.Filled.Code, "Pratinjau Markdown"),
-    FeatureTile(Icons.Filled.Download, "Ekspor Markdown"),
-    FeatureTile(Icons.Filled.Share, "Bagikan naskah"),
-    FeatureTile(Icons.Filled.FindReplace, "Cari & ganti"),
-    FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab"),
-    FeatureTile(Icons.Filled.History, "Riwayat versi"),
-    FeatureTile(Icons.Filled.TextFields, "Tiga jenis huruf"),
-    FeatureTile(Icons.Filled.Visibility, "Mode fokus"),
-    FeatureTile(Icons.Filled.InsertChart, "Statistik harian"),
-    FeatureTile(Icons.AutoMirrored.Filled.Label, "Tag buku"),
-    FeatureTile(Icons.Filled.RestoreFromTrash, "Sampah & pulihkan"),
-    FeatureTile(Icons.Filled.ContentCopy, "Duplikat naskah"),
-    FeatureTile(Icons.Filled.AccountTree, "Pindah bagian"),
-    FeatureTile(Icons.Filled.Save, "Cadangan JSON"),
-    FeatureTile(Icons.Filled.Timer, "Estimasi baca"),
-)
 
 private val highlights = listOf(
     Highlight(
@@ -103,21 +59,6 @@ private val highlights = listOf(
         title = "Tinggal di perangkatmu",
         body = "Satu berkas JSON di penyimpanan privat. Tanpa akun, awan, iklan, atau pelacakan.",
     ),
-)
-
-private val reasons = listOf(
-    FeatureTile(Icons.Filled.AllInclusive, "Kata tanpa batas"),
-    FeatureTile(Icons.Filled.Speed, "Menulis tetap lancar"),
-    FeatureTile(Icons.Filled.NightsStay, "Mode malam"),
-    FeatureTile(Icons.Filled.FormatSize, "Ukuran huruf"),
-    FeatureTile(Icons.Filled.FormatLineSpacing, "Jarak baris"),
-    FeatureTile(Icons.Filled.Today, "Target kata harian"),
-    FeatureTile(Icons.Filled.Shield, "Tanpa iklan"),
-    FeatureTile(Icons.Filled.Search, "Cari lintas buku"),
-    FeatureTile(Icons.Filled.Lock, "Data milikmu"),
-    FeatureTile(Icons.Filled.AutoStories, "Pustaka bertingkat"),
-    FeatureTile(Icons.Filled.FormatQuote, "Frasa cepat"),
-    FeatureTile(Icons.Filled.Edit, "Judul kapan saja"),
 )
 
 @Composable

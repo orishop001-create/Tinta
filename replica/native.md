@@ -77,12 +77,13 @@ single-activity app has to a main menu.
 
 - Section bands + four-column icon grid: `coreTiles` and `reasons` in `ui/screens/FeaturesScreen.kt`.
 - Three highlight rows (`highlights`) carry the detail the original puts under a second band.
+- The same catalogue opens as a two-column bottom sheet (`ui/components/FeatureSheet.kt`) from
+  the three-dot menus of the book screen, each chapter row and each library book card, so the
+  list is one tap away while writing instead of a separate screen.
 - Every listed feature is free: the sticky action bar says so and returns to writing. No
   purchase flow, price, tier or licence check exists because Tinta has no billing.
 - Deliberately left out, per the user's instruction: read-aloud/TTS, accessibility services
   that need a server, and every AI writer feature. Cloud sync stays out as before.
-- `TintaTopBar` gained optional `navIcon`/`navLabel` so this screen closes with an X like the
-  reference while every other screen keeps its back arrow.
 
 Checks: `./gradlew :app:assembleDebug :app:lintDebug` run locally on a portable JDK 17 +
 Android SDK 35 (see the run notes in the commit), and the GitHub Actions workflow rebuilds the

@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.tinta.app.ui.components.FeatureSheet
 import id.tinta.app.data.Book
 import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.components.BookCover
@@ -73,13 +74,17 @@ fun LibraryScreen(
     onSearch: () -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
-    onFeatures: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
     var showCreate by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Book?>(null) }
     var deleting by remember { mutableStateOf<Book?>(null) }
+    var showFeatures by remember { mutableStateOf(false) }
+
+    if (showFeatures) {
+        FeatureSheet(onDismiss = { showFeatures = false })
+    }
 
     val lastChapter = data.settings.lastDocId?.let { id ->
         data.chapters.firstOrNull { it.id == id && it.deletedAt == null }
@@ -153,7 +158,7 @@ fun LibraryScreen(
                         onClick = { onOpenBook(book.id) },
                         onEdit = { editing = book },
                         onDelete = { deleting = book },
-                        onFeatures = onFeatures,
+                        onFeatures = { showFeatures = true },
                     )
                 }
             }
