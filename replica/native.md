@@ -79,7 +79,9 @@ single-activity app has to a main menu.
 - Three highlight rows (`highlights`) carry the detail the original puts under a second band.
 - The same catalogue opens as a two-column bottom sheet (`ui/components/FeatureSheet.kt`) from
   the three-dot menus of the book screen, each chapter row and each library book card, so the
-  list is one tap away while writing instead of a separate screen.
+  list is one tap away while writing instead of a separate screen. Every row is tappable and
+  carries a `FeatureTarget` handled once in `TintaApp`; rows that need a document open the
+  book's most recently edited chapter, and fall back to the book screen when it has none.
 - Every listed feature is free: the sticky action bar says so and returns to writing. No
   purchase flow, price, tier or licence check exists because Tinta has no billing.
 - Deliberately left out, per the user's instruction: read-aloud/TTS, accessibility services

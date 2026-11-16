@@ -1,5 +1,6 @@
 package id.tinta.app.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -50,51 +52,61 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import id.tinta.app.ui.theme.LocalTintaColors
 
-data class FeatureTile(val icon: ImageVector, val label: String)
+enum class FeatureTarget { LIBRARY, BOOK, EDITOR, HISTORY, SEARCH, STATS, TRASH, SETTINGS }
+
+data class FeatureTile(
+    val icon: ImageVector,
+    val label: String,
+    val target: FeatureTarget,
+)
 
 val coreTiles = listOf(
-    FeatureTile(Icons.Filled.Palette, "Empat tema kertas"),
-    FeatureTile(Icons.Filled.Code, "Pratinjau Markdown"),
-    FeatureTile(Icons.Filled.Download, "Ekspor Markdown"),
-    FeatureTile(Icons.Filled.Share, "Bagikan naskah"),
-    FeatureTile(Icons.Filled.FindReplace, "Cari & ganti"),
-    FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab"),
-    FeatureTile(Icons.Filled.History, "Riwayat versi"),
-    FeatureTile(Icons.Filled.TextFields, "Tiga jenis huruf"),
-    FeatureTile(Icons.Filled.Visibility, "Mode fokus"),
-    FeatureTile(Icons.Filled.InsertChart, "Statistik harian"),
-    FeatureTile(Icons.AutoMirrored.Filled.Label, "Tag buku"),
-    FeatureTile(Icons.Filled.RestoreFromTrash, "Sampah & pulihkan"),
-    FeatureTile(Icons.Filled.ContentCopy, "Duplikat naskah"),
-    FeatureTile(Icons.Filled.AccountTree, "Pindah bagian"),
-    FeatureTile(Icons.Filled.Save, "Cadangan JSON"),
-    FeatureTile(Icons.Filled.Timer, "Estimasi baca"),
+    FeatureTile(Icons.Filled.Palette, "Empat tema kertas", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Code, "Pratinjau Markdown", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.Download, "Ekspor Markdown", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.Share, "Bagikan naskah", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.FindReplace, "Cari & ganti", FeatureTarget.SEARCH),
+    FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab", FeatureTarget.BOOK),
+    FeatureTile(Icons.Filled.History, "Riwayat versi", FeatureTarget.HISTORY),
+    FeatureTile(Icons.Filled.TextFields, "Tiga jenis huruf", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Visibility, "Mode fokus", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.InsertChart, "Statistik harian", FeatureTarget.STATS),
+    FeatureTile(Icons.AutoMirrored.Filled.Label, "Tag buku", FeatureTarget.BOOK),
+    FeatureTile(Icons.Filled.RestoreFromTrash, "Sampah & pulihkan", FeatureTarget.TRASH),
+    FeatureTile(Icons.Filled.ContentCopy, "Duplikat naskah", FeatureTarget.BOOK),
+    FeatureTile(Icons.Filled.AccountTree, "Pindah bagian", FeatureTarget.BOOK),
+    FeatureTile(Icons.Filled.Save, "Cadangan JSON", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Timer, "Estimasi baca", FeatureTarget.EDITOR),
 )
 
 val reasons = listOf(
-    FeatureTile(Icons.Filled.AllInclusive, "Kata tanpa batas"),
-    FeatureTile(Icons.Filled.Speed, "Menulis tetap lancar"),
-    FeatureTile(Icons.Filled.NightsStay, "Mode malam"),
-    FeatureTile(Icons.Filled.FormatSize, "Ukuran huruf"),
-    FeatureTile(Icons.Filled.FormatLineSpacing, "Jarak baris"),
-    FeatureTile(Icons.Filled.Today, "Target kata harian"),
-    FeatureTile(Icons.Filled.Shield, "Tanpa iklan"),
-    FeatureTile(Icons.Filled.Search, "Cari lintas buku"),
-    FeatureTile(Icons.Filled.Lock, "Data milikmu"),
-    FeatureTile(Icons.Filled.AutoStories, "Pustaka bertingkat"),
-    FeatureTile(Icons.Filled.FormatQuote, "Frasa cepat"),
-    FeatureTile(Icons.Filled.Edit, "Judul kapan saja"),
+    FeatureTile(Icons.Filled.AllInclusive, "Kata tanpa batas", FeatureTarget.STATS),
+    FeatureTile(Icons.Filled.Speed, "Menulis tetap lancar", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.NightsStay, "Mode malam", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.FormatSize, "Ukuran huruf", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.FormatLineSpacing, "Jarak baris", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Today, "Target kata harian", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Shield, "Tanpa iklan", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.Search, "Cari lintas buku", FeatureTarget.SEARCH),
+    FeatureTile(Icons.Filled.Lock, "Data milikmu", FeatureTarget.SETTINGS),
+    FeatureTile(Icons.Filled.AutoStories, "Pustaka bertingkat", FeatureTarget.LIBRARY),
+    FeatureTile(Icons.Filled.FormatQuote, "Frasa cepat", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.Edit, "Judul kapan saja", FeatureTarget.EDITOR),
 )
 
 val sheetFeatures: List<FeatureTile> = coreTiles + reasons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeatureSheet(onDismiss: () -> Unit) {
+fun FeatureSheet(
+    onDismiss: () -> Unit,
+    onOpen: (FeatureTarget) -> Unit,
+) {
     val colors = LocalTintaColors.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -105,7 +117,7 @@ fun FeatureSheet(onDismiss: () -> Unit) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 12.dp, bottom = 18.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 18.dp),
         ) {
             Text(
                 text = "Semua fitur",
@@ -114,18 +126,20 @@ fun FeatureSheet(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                text = "${sheetFeatures.size} fitur terbuka. Gratis, tanpa langganan.",
+                text = "${sheetFeatures.size} fitur terbuka. Ketuk untuk membuka.",
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.muted,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             LazyColumn(
                 modifier = Modifier.heightIn(max = 460.dp),
                 contentPadding = PaddingValues(vertical = 2.dp),
             ) {
-                items(sheetFeatures.chunked(2)) { row -> FeatureSheetRow(row) }
+                items(sheetFeatures.chunked(2)) { row ->
+                    FeatureSheetRow(row = row, onOpen = onOpen)
+                }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "Tanpa akun, iklan, atau kunci fitur.",
                 style = MaterialTheme.typography.labelSmall,
@@ -136,14 +150,12 @@ fun FeatureSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun FeatureSheetRow(row: List<FeatureTile>) {
+private fun FeatureSheetRow(row: List<FeatureTile>, onOpen: (FeatureTarget) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 5.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        row.forEach { tile -> FeatureSheetCell(tile, Modifier.weight(1f)) }
+        row.forEach { tile -> FeatureSheetCell(tile, onOpen, Modifier.weight(1f)) }
         if (row.size == 1) {
             Spacer(Modifier.weight(1f))
         }
@@ -151,10 +163,17 @@ private fun FeatureSheetRow(row: List<FeatureTile>) {
 }
 
 @Composable
-private fun FeatureSheetCell(tile: FeatureTile, modifier: Modifier = Modifier) {
+private fun FeatureSheetCell(
+    tile: FeatureTile,
+    onOpen: (FeatureTarget) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalTintaColors.current
     Row(
-        modifier = modifier.padding(end = 8.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onOpen(tile.target) }
+            .padding(horizontal = 6.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(

@@ -46,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import id.tinta.app.ui.components.FeatureSheet
 import id.tinta.app.data.Book
 import id.tinta.app.data.Chapter
 import id.tinta.app.data.TintaStore
@@ -67,6 +66,7 @@ fun BookScreen(
     bookId: String,
     onBack: () -> Unit,
     onOpenChapter: (String) -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -78,11 +78,6 @@ fun BookScreen(
     var deleteVolume by remember { mutableStateOf<String?>(null) }
     var deleteChapter by remember { mutableStateOf<Chapter?>(null) }
     var moveChapter by remember { mutableStateOf<Chapter?>(null) }
-    var showFeatures by remember { mutableStateOf(false) }
-
-    if (showFeatures) {
-        FeatureSheet(onDismiss = { showFeatures = false })
-    }
 
     if (book == null) {
         Scaffold(
@@ -135,7 +130,7 @@ fun BookScreen(
                                 text = { Text("Semua fitur", color = colors.ink) },
                                 onClick = {
                                     showMenu = false
-                                    showFeatures = true
+                                    onFeatures()
                                 },
                             )
                             DropdownMenuItem(
@@ -239,7 +234,7 @@ fun BookScreen(
                                     store.duplicateChapter(chapter.id)?.let(onOpenChapter)
                                 },
                                 onDelete = { deleteChapter = chapter },
-                                onFeatures = { showFeatures = true },
+                                onFeatures = onFeatures,
                             )
                         }
                     }

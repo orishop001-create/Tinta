@@ -6,13 +6,20 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import id.tinta.app.data.TintaStore
+import id.tinta.app.ui.components.FeatureSheet
+import id.tinta.app.ui.components.FeatureTarget
 import id.tinta.app.ui.screens.BookScreen
 import id.tinta.app.ui.screens.EditorScreen
 import id.tinta.app.ui.screens.FeaturesScreen
@@ -28,6 +35,8 @@ import id.tinta.app.ui.theme.LocalTintaColors
 fun TintaApp(store: TintaStore) {
     val nav = rememberNavController()
     val colors = LocalTintaColors.current
+    val data by store.state.collectAsStateWithLifecycle()
+    var featureBookId by remember { mutableStateOf<String?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = colors.bg) {
         NavHost(
@@ -46,6 +55,7 @@ fun TintaApp(store: TintaStore) {
                     onSearch = { nav.navigate("search") },
                     onStats = { nav.navigate("stats") },
                     onSettings = { nav.navigate("settings") },
+                    onFeatures = { bookId -> featureBookId = bookId },
                 )
             }
             composable(
@@ -61,6 +71,7 @@ fun TintaApp(store: TintaStore) {
                         store.openChapter(chapterId)
                         nav.navigate("editor/$chapterId")
                     },
+                    onFeatures = { featureBookId = id },
                 )
             }
             composable(
@@ -116,6 +127,45 @@ fun TintaApp(store: TintaStore) {
                     onBack = { nav.popBackStack() },
                 )
             }
+        }
+
+        val sheetBookId = featureBookId
+        if (sheetBookId != null) {
+            val lastChapter = data.chapters
+                .filter { it.bookId == sheetBookId && it.deletedAt == null }
+                .maxByOrNull { it.updatedAt }
+
+            FeatureSheet(
+                onDismiss = { featureBookId = null },
+                onOpen = { target ->
+                    featureBookId = null
+                    val chapterId = lastChapter?.id
+                    val fallback = "book/$sheetBookId"
+                    when (target) {
+                        FeatureTarget.LIBRARY -> nav.popBackStack("library", inclusive = false)
+                        FeatureTarget.BOOK -> nav.navigate(fallback) { launchSingleTop = true }
+                        FeatureTarget.EDITOR -> {
+                            if (chapterId != null) {
+                                store.openChapter(chapterId)
+                                nav.navigate("editor/$chapterId") { launchSingleTop = true }
+                            } else {
+                                nav.navigate(fallback) { launchSingleTop = true }
+                            }
+                        }
+                        FeatureTarget.HISTORY -> {
+                            if (chapterId != null) {
+                                nav.navigate("history/$chapterId") { launchSingleTop = true }
+                            } else {
+                                nav.navigate(fallback) { launchSingleTop = true }
+                            }
+                        }
+                        FeatureTarget.SEARCH -> nav.navigate("search") { launchSingleTop = true }
+                        FeatureTarget.STATS -> nav.navigate("stats") { launchSingleTop = true }
+                        FeatureTarget.TRASH -> nav.navigate("trash") { launchSingleTop = true }
+                        FeatureTarget.SETTINGS -> nav.navigate("settings") { launchSingleTop = true }
+                    }
+                },
+            )
         }
     }
 }
