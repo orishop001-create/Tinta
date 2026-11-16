@@ -1,0 +1,23 @@
+{
+  "name": "Tinta",
+  "avoid": [
+    "Pure Writer",
+    "PureWriter",
+    "Pure writer",
+    "纯纯写作",
+    "Drakeet",
+    "drakeet"
+  ],
+  "domains": [
+    "writer.drakeet.com",
+    "drakeet.com",
+    "play.google.com/store/apps/details?id=com.drakeet.purewriter"
+  ],
+  "colors": [
+    "#006BFF",
+    "#3B82F6",
+    "#1E90FF",
+    "#0A84FF"
+  ],
+  "notes": "Screening only. Original name, domains and a representative blue brand family are avoided across shipped code, strings, icons and copy. Planning docs under replica/ are excluded by the sweep. Trademark and domain checks are still to run."
+}

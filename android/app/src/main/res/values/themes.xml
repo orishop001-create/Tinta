@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.Tinta" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/tinta_paper</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/tinta_paper</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">@color/tinta_accent</item>
+    </style>
+</resources>
