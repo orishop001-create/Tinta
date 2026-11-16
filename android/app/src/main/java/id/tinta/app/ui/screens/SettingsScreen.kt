@@ -63,7 +63,7 @@ fun SettingsScreen(
     store: TintaStore,
     onBack: () -> Unit,
     onTrash: () -> Unit,
-    onPro: () -> Unit,
+    onFeatures: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -136,12 +136,12 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .clickable(onClick = onPro)
+                            .clickable(onClick = onFeatures)
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Lihat semua fitur Tinta Pro",
+                            "Lihat semua fitur Tinta",
                             style = MaterialTheme.typography.labelLarge,
                             color = colors.accent,
                             modifier = Modifier.weight(1f),

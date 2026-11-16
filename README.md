@@ -46,8 +46,8 @@ Atau buka `android/` di Android Studio. Detail arsitektur, CI, dan batas versi a
 - Cari & ganti lintas buku: filter buku, beda huruf, regex, konfirmasi ganti massal.
 - Statistik: target harian, runtutan, total kata, peta panas 12 minggu.
 - Bagikan teks, simpan Markdown, cadangkan/pulihkan JSON penuh.
-- Halaman Tinta Pro: katalog fitur dalam kisi empat kolom dengan sorotan dan bilah aksi
-  tetap. Tanpa pembelian, langganan, TTS, atau AI.
+- Halaman Fitur Tinta: katalog semua fitur dalam kisi empat kolom dengan sorotan dan
+  bilah aksi tetap. Semuanya gratis; tanpa pembelian, langganan, TTS, atau AI.
 - Penyimpanan lokal atomik di `filesDir/tinta.json`; tanpa database, tanpa jaringan.
 
 ## Batas yang diketahui

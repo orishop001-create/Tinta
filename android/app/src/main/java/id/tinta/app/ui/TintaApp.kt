@@ -15,9 +15,9 @@ import androidx.navigation.navArgument
 import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.screens.BookScreen
 import id.tinta.app.ui.screens.EditorScreen
+import id.tinta.app.ui.screens.FeaturesScreen
 import id.tinta.app.ui.screens.HistoryScreen
 import id.tinta.app.ui.screens.LibraryScreen
-import id.tinta.app.ui.screens.ProScreen
 import id.tinta.app.ui.screens.SearchScreen
 import id.tinta.app.ui.screens.SettingsScreen
 import id.tinta.app.ui.screens.StatsScreen
@@ -104,11 +104,11 @@ fun TintaApp(store: TintaStore) {
                     store = store,
                     onBack = { nav.popBackStack() },
                     onTrash = { nav.navigate("trash") },
-                    onPro = { nav.navigate("pro") },
+                    onFeatures = { nav.navigate("features") },
                 )
             }
-            composable("pro") {
-                ProScreen(onClose = { nav.popBackStack() })
+            composable("features") {
+                FeaturesScreen(onClose = { nav.popBackStack() })
             }
             composable("trash") {
                 TrashScreen(

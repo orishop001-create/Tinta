@@ -48,4 +48,4 @@ Widget dan berbagi sistem Android iOS,Integrasi,could,yes,skip,"Butuh aplikasi n
 Sinkronisasi multiperangkat bawaan,Sinkronisasi,could,yes,skip,"Membutuhkan backend dan akun; di luar lingkup lokal-first."
 Versi Android iOS dan desktop,Platform,could,yes,skip,"Rebuild web; platform native di luar lingkup."
 Tanpa paywall akun dan iklan,Kebebasan,could,no,yes,"Permintaan utama: semua fitur terbuka dan gratis."
-Katalog fitur Tinta Pro,Tampilan,should,yes,yes,"Layar dari Setelan: kisi empat kolom ikon + label, sorotan, bilah aksi tetap; tanpa pembelian, TTS, atau AI."
+Katalog semua fitur Tinta,Tampilan,should,yes,yes,"Layar dari Setelan: kisi empat kolom ikon + label, sorotan, bilah aksi tetap; semua gratis, tanpa TTS atau AI."

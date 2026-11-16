@@ -64,70 +64,70 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import id.tinta.app.ui.theme.LocalTintaColors
 
-private data class ProTile(val icon: ImageVector, val label: String)
+private data class FeatureTile(val icon: ImageVector, val label: String)
 
-private data class ProHighlight(val icon: ImageVector, val title: String, val body: String)
+private data class Highlight(val icon: ImageVector, val title: String, val body: String)
 
-private val proTiles = listOf(
-    ProTile(Icons.Filled.Palette, "Empat tema kertas"),
-    ProTile(Icons.Filled.Code, "Pratinjau Markdown"),
-    ProTile(Icons.Filled.Download, "Ekspor Markdown"),
-    ProTile(Icons.Filled.Share, "Bagikan naskah"),
-    ProTile(Icons.Filled.FindReplace, "Cari & ganti"),
-    ProTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab"),
-    ProTile(Icons.Filled.History, "Riwayat versi"),
-    ProTile(Icons.Filled.TextFields, "Tiga jenis huruf"),
-    ProTile(Icons.Filled.Visibility, "Mode fokus"),
-    ProTile(Icons.Filled.InsertChart, "Statistik harian"),
-    ProTile(Icons.AutoMirrored.Filled.Label, "Tag buku"),
-    ProTile(Icons.Filled.RestoreFromTrash, "Sampah & pulihkan"),
-    ProTile(Icons.Filled.ContentCopy, "Duplikat naskah"),
-    ProTile(Icons.Filled.AccountTree, "Pindah bagian"),
-    ProTile(Icons.Filled.Save, "Cadangan JSON"),
-    ProTile(Icons.Filled.Timer, "Estimasi baca"),
+private val coreTiles = listOf(
+    FeatureTile(Icons.Filled.Palette, "Empat tema kertas"),
+    FeatureTile(Icons.Filled.Code, "Pratinjau Markdown"),
+    FeatureTile(Icons.Filled.Download, "Ekspor Markdown"),
+    FeatureTile(Icons.Filled.Share, "Bagikan naskah"),
+    FeatureTile(Icons.Filled.FindReplace, "Cari & ganti"),
+    FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab"),
+    FeatureTile(Icons.Filled.History, "Riwayat versi"),
+    FeatureTile(Icons.Filled.TextFields, "Tiga jenis huruf"),
+    FeatureTile(Icons.Filled.Visibility, "Mode fokus"),
+    FeatureTile(Icons.Filled.InsertChart, "Statistik harian"),
+    FeatureTile(Icons.AutoMirrored.Filled.Label, "Tag buku"),
+    FeatureTile(Icons.Filled.RestoreFromTrash, "Sampah & pulihkan"),
+    FeatureTile(Icons.Filled.ContentCopy, "Duplikat naskah"),
+    FeatureTile(Icons.Filled.AccountTree, "Pindah bagian"),
+    FeatureTile(Icons.Filled.Save, "Cadangan JSON"),
+    FeatureTile(Icons.Filled.Timer, "Estimasi baca"),
 )
 
-private val proHighlights = listOf(
-    ProHighlight(
+private val highlights = listOf(
+    Highlight(
         icon = Icons.Filled.Edit,
         title = "Editor tanpa gangguan",
         body = "Simpan otomatis setiap jeda ketik, hitungan kata, dan pratinjau Markdown di layar yang sama.",
     ),
-    ProHighlight(
+    Highlight(
         icon = Icons.Filled.History,
         title = "Riwayat yang tidak hilang",
         body = "Snapshot otomatis saat naskah dibuka dan tiap dua menit. Bandingkan baris, lalu pulihkan.",
     ),
-    ProHighlight(
+    Highlight(
         icon = Icons.Filled.CloudOff,
         title = "Tinggal di perangkatmu",
         body = "Satu berkas JSON di penyimpanan privat. Tanpa akun, awan, iklan, atau pelacakan.",
     ),
 )
 
-private val proReasons = listOf(
-    ProTile(Icons.Filled.AllInclusive, "Kata tanpa batas"),
-    ProTile(Icons.Filled.Speed, "Menulis tetap lancar"),
-    ProTile(Icons.Filled.NightsStay, "Mode malam"),
-    ProTile(Icons.Filled.FormatSize, "Ukuran huruf"),
-    ProTile(Icons.Filled.FormatLineSpacing, "Jarak baris"),
-    ProTile(Icons.Filled.Today, "Target kata harian"),
-    ProTile(Icons.Filled.Shield, "Tanpa iklan"),
-    ProTile(Icons.Filled.Search, "Cari lintas buku"),
-    ProTile(Icons.Filled.Lock, "Data milikmu"),
-    ProTile(Icons.Filled.AutoStories, "Pustaka bertingkat"),
-    ProTile(Icons.Filled.FormatQuote, "Frasa cepat"),
-    ProTile(Icons.Filled.Edit, "Judul kapan saja"),
+private val reasons = listOf(
+    FeatureTile(Icons.Filled.AllInclusive, "Kata tanpa batas"),
+    FeatureTile(Icons.Filled.Speed, "Menulis tetap lancar"),
+    FeatureTile(Icons.Filled.NightsStay, "Mode malam"),
+    FeatureTile(Icons.Filled.FormatSize, "Ukuran huruf"),
+    FeatureTile(Icons.Filled.FormatLineSpacing, "Jarak baris"),
+    FeatureTile(Icons.Filled.Today, "Target kata harian"),
+    FeatureTile(Icons.Filled.Shield, "Tanpa iklan"),
+    FeatureTile(Icons.Filled.Search, "Cari lintas buku"),
+    FeatureTile(Icons.Filled.Lock, "Data milikmu"),
+    FeatureTile(Icons.Filled.AutoStories, "Pustaka bertingkat"),
+    FeatureTile(Icons.Filled.FormatQuote, "Frasa cepat"),
+    FeatureTile(Icons.Filled.Edit, "Judul kapan saja"),
 )
 
 @Composable
-fun ProScreen(onClose: () -> Unit) {
+fun FeaturesScreen(onClose: () -> Unit) {
     val colors = LocalTintaColors.current
 
     Scaffold(
         containerColor = colors.bg,
-        topBar = { ProTopBar(onClose = onClose) },
-        bottomBar = { ProActionBar(onClose = onClose) },
+        topBar = { FeaturesTopBar(onClose = onClose) },
+        bottomBar = { FeaturesActionBar(onClose = onClose) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -135,14 +135,14 @@ fun ProScreen(onClose: () -> Unit) {
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
-            item { SectionBand("Tinta Pro") }
-            items(proTiles.chunked(4)) { row -> TileRow(row) }
+            item { SectionBand("Fitur Tinta") }
+            items(coreTiles.chunked(4)) { row -> TileRow(row) }
 
-            item { SectionBand("Isi Tinta Pro") }
-            items(proHighlights) { highlight -> HighlightRow(highlight) }
+            item { SectionBand("Yang kamu dapat") }
+            items(highlights) { highlight -> HighlightRow(highlight) }
 
             item { SectionBand("Alasan lain memakai Tinta") }
-            items(proReasons.chunked(4)) { row -> TileRow(row) }
+            items(reasons.chunked(4)) { row -> TileRow(row) }
 
             item { ClosingNote() }
         }
@@ -150,7 +150,7 @@ fun ProScreen(onClose: () -> Unit) {
 }
 
 @Composable
-private fun ProTopBar(onClose: () -> Unit) {
+private fun FeaturesTopBar(onClose: () -> Unit) {
     val colors = LocalTintaColors.current
     Row(
         modifier = Modifier
@@ -168,7 +168,7 @@ private fun ProTopBar(onClose: () -> Unit) {
         }
         Spacer(Modifier.width(6.dp))
         Text(
-            text = "Tinta Pro",
+            text = "Fitur Tinta",
             style = MaterialTheme.typography.titleLarge,
             color = colors.ink,
         )
@@ -191,7 +191,7 @@ private fun SectionBand(title: String) {
 }
 
 @Composable
-private fun TileRow(row: List<ProTile>) {
+private fun TileRow(row: List<FeatureTile>) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,7 +204,7 @@ private fun TileRow(row: List<ProTile>) {
 }
 
 @Composable
-private fun Tile(tile: ProTile, modifier: Modifier = Modifier) {
+private fun Tile(tile: FeatureTile, modifier: Modifier = Modifier) {
     val colors = LocalTintaColors.current
     Column(
         modifier = modifier.padding(horizontal = 5.dp, vertical = 13.dp),
@@ -228,7 +228,7 @@ private fun Tile(tile: ProTile, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun HighlightRow(highlight: ProHighlight) {
+private fun HighlightRow(highlight: Highlight) {
     val colors = LocalTintaColors.current
     Row(
         modifier = Modifier
@@ -266,7 +266,7 @@ private fun HighlightRow(highlight: ProHighlight) {
 private fun ClosingNote() {
     val colors = LocalTintaColors.current
     Text(
-        text = "Tinta tumbuh dari kebiasaan menulis, bukan dari langganan. Tidak ada iklan, akun, atau pelacakan di dalamnya.",
+        text = "Semua fitur di halaman ini terbuka tanpa akun, langganan, atau pembelian. Tinta tumbuh dari kebiasaan menulis, bukan dari kunci fitur.",
         style = MaterialTheme.typography.bodyMedium,
         color = colors.muted,
         modifier = Modifier
@@ -276,7 +276,7 @@ private fun ClosingNote() {
 }
 
 @Composable
-private fun ProActionBar(onClose: () -> Unit) {
+private fun FeaturesActionBar(onClose: () -> Unit) {
     val colors = LocalTintaColors.current
     Row(
         modifier = Modifier
@@ -288,7 +288,7 @@ private fun ProActionBar(onClose: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = "Sudah aktif",
+                text = "Gratis selamanya",
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.ink,
                 maxLines = 1,

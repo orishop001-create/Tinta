@@ -69,16 +69,16 @@ checks listed in `brand.md` before any store release.
 4. Undo/redo and PDF export.
 5. Release signing, privacy statement, and store listing assets (only after brand checks).
 
-## 2026-11-16 — Halaman Tinta Pro
+## 2026-11-16 — Halaman Fitur Tinta
 
-The user asked for the Pro showcase Pure Writer opens from its menu, rebuilt in Tinta. It
-sits behind **Setelan → Lihat semua fitur Tinta Pro** (`pro` route), the closest thing this
+The user asked for the feature showcase Pure Writer opens from its menu, rebuilt in Tinta. It
+sits behind **Setelan → Lihat semua fitur Tinta** (`features` route), the closest thing this
 single-activity app has to a main menu.
 
-- Section bands + four-column icon grid: `proTiles` and `proReasons` in `ui/screens/ProScreen.kt`.
-- Three highlight rows (`proHighlights`) carry the detail the original puts under a second band.
-- Sticky action bar states that the catalogue is already active and returns to writing; there
-  is no purchase flow, price, or licence check because Tinta has no billing.
+- Section bands + four-column icon grid: `coreTiles` and `reasons` in `ui/screens/FeaturesScreen.kt`.
+- Three highlight rows (`highlights`) carry the detail the original puts under a second band.
+- Every listed feature is free: the sticky action bar says so and returns to writing. No
+  purchase flow, price, tier or licence check exists because Tinta has no billing.
 - Deliberately left out, per the user's instruction: read-aloud/TTS, accessibility services
   that need a server, and every AI writer feature. Cloud sync stays out as before.
 - `TintaTopBar` gained optional `navIcon`/`navLabel` so this screen closes with an X like the

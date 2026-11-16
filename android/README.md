@@ -43,8 +43,8 @@ build tidak disimpan di git.
 - Statistik: target harian, runtutan, total kata, peta panas 12 minggu, naskah terakhir.
 - Ekspor: bagikan teks, simpan Markdown, cadangkan/pulihkan JSON penuh; sampah dengan
   pemulihan.
-- Halaman **Tinta Pro** (dari Setelan): katalog semua fitur dalam kisi empat kolom dengan
-  sorotan dan bilah aksi tetap. Tanpa pembelian, langganan, TTS, atau AI.
+- Halaman **Fitur Tinta** (dari Setelan): katalog semua fitur dalam kisi empat kolom dengan
+  sorotan dan bilah aksi tetap. Seluruh fitur gratis; tanpa pembelian, langganan, TTS, atau AI.
 - Penyimpanan lokal JSON atomik di `filesDir/tinta.json`; cadangan otomatis saat aplikasi
   dihentikan.
 
@@ -55,7 +55,7 @@ app/src/main/java/id/tinta/app/
   MainActivity.kt          activity + Compose root
   data/                    model, seed, TintaStore (JSON + StateFlow)
   ui/TintaApp.kt           Navigation Compose routes
-  ui/screens/              Pustaka, Buku, Editor, Riwayat, Cari, Statistik, Setelan, Sampah, Pro
+  ui/screens/              Pustaka, Buku, Editor, Riwayat, Cari, Statistik, Setelan, Sampah, Fitur
   ui/components/           top bar, kontrol, sampul, Markdown
   ui/theme/                empat palet + tipografi
   util/                    kata/tanggal, diff baris
