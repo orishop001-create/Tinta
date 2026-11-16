@@ -138,6 +138,18 @@ fun TintaApp(store: TintaStore) {
                     chapterId = id,
                     onBack = { nav.popBackStack() },
                     onHistory = { nav.navigate("history/$id") },
+                    onOpenChapter = { nextId ->
+                        store.openChapter(nextId)
+                        val bookId = data.chapters.firstOrNull { it.id == id }?.bookId
+                        if (bookId != null) {
+                            nav.navigate("editor/$nextId") {
+                                popUpTo("book/$bookId") { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            nav.navigate("editor/$nextId") { launchSingleTop = true }
+                        }
+                    },
                 )
             }
             composable(

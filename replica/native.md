@@ -100,3 +100,19 @@ debug APK and source archive on push.
   both writing through the system create-document picker (`ActivityResultContracts.CreateDocument`).
 - The feature sheet's export rows now run from `TintaApp`, so "Ekspor Markdown", the new
   "Ekspor PDF" and "Bagikan buku" work from any screen that opens the sheet.
+
+## 2026-11-16 — Batch 1 blueprint (editor)
+
+- Undo/redo stack in `EditorScreen` (60 steps, 700 ms grouping) with `AutoMirrored.Filled.Undo`/`Redo`
+  in the top bar; the stack is editor-local and never touches the JSON store.
+- Typewriter scrolling: the body field now lives in a scrolling column and a `LaunchedEffect`
+  centres the caret line when `Settings.typewriter` is on (toggle in the editor menu or Settings).
+- Chapter navigation: bottom bar chevrons open the previous/next chapter of the same book, and a
+  list icon opens a table-of-contents dialog. Both route through `onOpenChapter` in `TintaApp`,
+  which pops back to the book screen so the back stack does not grow per chapter.
+- `Settings` gained `chapterGoal`, `typewriter` and `lastBackupAt` (all defaulted, so old JSON loads).
+  The editor shows "kata / target" plus a thin progress bar, and a 15-minute sprint timer in the menu.
+- Settings gained a "Menulis" card: per-chapter target, typewriter toggle, and a phrase manager
+  (tap a phrase to delete it, add via the editor dialog).
+- Settings now shows when the last JSON backup happened and warns after 7 days; a successful
+  backup or restore stamps `lastBackupAt`.

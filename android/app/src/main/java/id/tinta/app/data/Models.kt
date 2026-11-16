@@ -59,6 +59,9 @@ data class Settings(
     val dailyGoal: Int = 500,
     val phrases: List<String> = DEFAULT_PHRASES,
     val lastDocId: String? = null,
+    val chapterGoal: Int = 1000,
+    val typewriter: Boolean = false,
+    val lastBackupAt: Long = 0L,
 )
 
 @Serializable

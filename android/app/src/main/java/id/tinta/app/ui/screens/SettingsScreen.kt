@@ -53,6 +53,7 @@ import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.PrimaryButton
 import id.tinta.app.ui.components.SecondaryButton
+import id.tinta.app.ui.components.TintaTextField
 import id.tinta.app.ui.components.TintaTopBar
 import id.tinta.app.ui.theme.LocalTintaColors
 import id.tinta.app.ui.theme.TintaPalettes
@@ -72,6 +73,7 @@ fun SettingsScreen(
     var confirmReset by remember { mutableStateOf(false) }
     var importText by remember { mutableStateOf<String?>(null) }
     var backupText by remember { mutableStateOf("") }
+    var phraseDraft by remember { mutableStateOf("") }
     val trashCount = data.chapters.count { it.deletedAt != null }
 
     val backupLauncher = rememberLauncherForActivityResult(
@@ -83,6 +85,7 @@ fun SettingsScreen(
                     it.write(backupText.toByteArray(Charsets.UTF_8))
                 }
             }.onSuccess {
+                store.markBackupDone()
                 Toast.makeText(context, "Cadangan JSON tersimpan.", Toast.LENGTH_SHORT).show()
             }.onFailure {
                 Toast.makeText(context, "Gagal menyimpan cadangan.", Toast.LENGTH_SHORT).show()
@@ -240,6 +243,77 @@ fun SettingsScreen(
                 }
             }
 
+            item { SectionLabel("Menulis") }
+            item {
+                SettingCard {
+                    SettingSlider(
+                        label = "Target kata per bab",
+                        value = "${settings.chapterGoal} kata",
+                        valueFloat = settings.chapterGoal.toFloat(),
+                        range = 200f..5000f,
+                        onChange = { value ->
+                            store.updateSettings { it.copy(chapterGoal = (value / 100).toInt() * 100) }
+                        },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { store.updateSettings { it.copy(typewriter = !it.typewriter) } }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Mode mesin tik",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.ink,
+                            )
+                            Text(
+                                "Baris yang sedang ditulis tetap di tengah layar.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.muted,
+                            )
+                        }
+                        Text(
+                            if (settings.typewriter) "Aktif" else "Mati",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (settings.typewriter) colors.accent else colors.muted,
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text("Frasa cepat", style = MaterialTheme.typography.titleMedium, color = colors.ink)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Ketuk frasa untuk menghapusnya dari bilah editor.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        settings.phrases.forEach { phrase ->
+                            Box(
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(colors.bg)
+                                    .clickable { store.removePhrase(phrase) }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                            ) {
+                                Text(
+                                    phrase,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.ink,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             item { SectionLabel("Data") }
             item {
                 SettingCard {
@@ -249,6 +323,19 @@ fun SettingsScreen(
                         "Data tinggal di perangkat ini. Buat cadangan JSON sebelum membersihkan data aplikasi atau berganti ponsel.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.muted,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    val overdue = settings.lastBackupAt == 0L ||
+                        System.currentTimeMillis() - settings.lastBackupAt > 7L * 24 * 60 * 60 * 1000
+                    Text(
+                        if (settings.lastBackupAt == 0L) {
+                            "Belum pernah dicadangkan. Buat cadangan pertama sekarang."
+                        } else {
+                            "Terakhir dicadangkan ${id.tinta.app.util.Text.relative(settings.lastBackupAt)}" +
+                                if (overdue) ". Sudah lewat 7 hari, waktunya mencadangkan lagi." else "."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (overdue) colors.danger else colors.muted,
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -344,6 +431,7 @@ fun SettingsScreen(
             onConfirm = {
                 store.importJson(text)
                     .onSuccess {
+                        store.markBackupDone()
                         Toast.makeText(context, "Cadangan dipulihkan.", Toast.LENGTH_SHORT).show()
                     }
                     .onFailure {

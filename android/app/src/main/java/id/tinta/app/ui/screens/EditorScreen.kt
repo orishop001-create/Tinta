@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,13 +26,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -55,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -88,6 +99,7 @@ fun EditorScreen(
     chapterId: String,
     onBack: () -> Unit,
     onHistory: () -> Unit,
+    onOpenChapter: (String) -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -121,6 +133,41 @@ fun EditorScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var showPhraseDialog by remember { mutableStateOf(false) }
     var exportBody by remember { mutableStateOf("") }
+    var showToc by remember { mutableStateOf(false) }
+    var sprintLeft by remember { mutableStateOf(0L) }
+    var sprintRunning by remember { mutableStateOf(false) }
+    val undoStack = remember(chapterId) { mutableStateListOf<String>() }
+    val redoStack = remember(chapterId) { mutableStateListOf<String>() }
+    var lastEditAt by remember(chapterId) { mutableStateOf(0L) }
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+
+    fun applyEdit(next: TextFieldValue) {
+        if (next.text != value.text) {
+            val stamp = System.currentTimeMillis()
+            if (stamp - lastEditAt > 700) {
+                undoStack.add(value.text)
+                if (undoStack.size > 60) undoStack.removeAt(0)
+                redoStack.clear()
+                lastEditAt = stamp
+            }
+        }
+        value = next
+    }
+
+    fun undo() {
+        if (undoStack.isEmpty()) return
+        val previous = undoStack.removeAt(undoStack.lastIndex)
+        redoStack.add(value.text)
+        value = TextFieldValue(previous, TextRange(previous.length))
+    }
+
+    fun redo() {
+        if (redoStack.isEmpty()) return
+        val next = redoStack.removeAt(redoStack.lastIndex)
+        undoStack.add(value.text)
+        value = TextFieldValue(next, TextRange(next.length))
+    }
 
     val latestText by rememberUpdatedState(value.text)
     val latestTitle by rememberUpdatedState(title)
@@ -137,6 +184,28 @@ fun EditorScreen(
         while (isActive) {
             delay(120_000)
             store.snapshotIfChanged(chapterId)
+        }
+    }
+
+    LaunchedEffect(sprintRunning) {
+        while (sprintRunning && sprintLeft > 0) {
+            delay(1000)
+            sprintLeft -= 1000
+        }
+        if (sprintLeft <= 0) sprintRunning = false
+    }
+
+    LaunchedEffect(value.selection.end, data.settings.typewriter, scrollState.maxValue) {
+        if (!data.settings.typewriter) return@LaunchedEffect
+        val caret = value.selection.end.coerceIn(0, value.text.length)
+        val lines = value.text.take(caret).count { it == '\n' }
+        val lineHeightPx = with(density) {
+            (data.settings.fontSize * data.settings.lineHeight).dp.toPx()
+        }
+        val viewport = scrollState.viewportSize
+        if (viewport > 0) {
+            val target = (lines * lineHeightPx).toInt() - viewport / 2
+            scrollState.animateScrollTo(target.coerceIn(0, scrollState.maxValue))
         }
     }
 
@@ -182,6 +251,9 @@ fun EditorScreen(
                     onBack()
                 },
                 actions = {
+                    IconAction(Icons.AutoMirrored.Filled.Undo, "Urungkan") { undo() }
+                    IconAction(Icons.AutoMirrored.Filled.Redo, "Ulangi") { redo() }
+                    IconAction(Icons.AutoMirrored.Filled.List, "Daftar isi") { showToc = true }
                     IconAction(Icons.Default.History, "Riwayat") {
                         store.updateChapterBody(chapterId, value.text)
                         store.updateChapterTitle(chapterId, title)
@@ -242,6 +314,46 @@ fun EditorScreen(
                                 },
                             )
                             DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (data.settings.typewriter) "Matikan mode mesin tik" else "Mode mesin tik",
+                                        color = colors.ink,
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.VerticalAlignCenter, null, tint = colors.muted)
+                                },
+                                onClick = {
+                                    menu = false
+                                    store.updateSettings { it.copy(typewriter = !it.typewriter) }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (sprintRunning) "Hentikan sprint" else "Sprint 15 menit",
+                                        color = colors.ink,
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (sprintRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                        null,
+                                        tint = colors.muted,
+                                    )
+                                },
+                                onClick = {
+                                    menu = false
+                                    if (sprintRunning) {
+                                        sprintRunning = false
+                                        sprintLeft = 0L
+                                    } else {
+                                        sprintLeft = 15L * 60L * 1000L
+                                        sprintRunning = true
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Bagikan teks", color = colors.ink) },
                                 leadingIcon = { Icon(Icons.Default.Share, null, tint = colors.muted) },
                                 onClick = {
@@ -276,6 +388,12 @@ fun EditorScreen(
         },
         bottomBar = {
             if (!focusMode) {
+                val siblings = data.chapters
+                    .filter { it.bookId == chapter.bookId && it.deletedAt == null }
+                    .sortedBy { it.order }
+                val chapterIndex = siblings.indexOfFirst { it.id == chapter.id }
+                val previousChapter = siblings.getOrNull(chapterIndex - 1)
+                val followingChapter = siblings.getOrNull(chapterIndex + 1)
                 EditorBottomBar(
                     markdown = chapter.markdown,
                     preview = preview,
@@ -283,6 +401,20 @@ fun EditorScreen(
                     onPhrase = { showPhraseDialog = true },
                     words = words,
                     chars = value.text.length,
+                    onPrev = previousChapter?.let { sibling ->
+                        {
+                            store.updateChapterBody(chapterId, value.text)
+                            store.updateChapterTitle(chapterId, title)
+                            onOpenChapter(sibling.id)
+                        }
+                    },
+                    onNext = followingChapter?.let { sibling ->
+                        {
+                            store.updateChapterBody(chapterId, value.text)
+                            store.updateChapterTitle(chapterId, title)
+                            onOpenChapter(sibling.id)
+                        }
+                    },
                 )
             }
         },
@@ -331,10 +463,27 @@ fun EditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "$words kata",
+                        if (data.settings.chapterGoal > 0) {
+                            "$words / ${data.settings.chapterGoal} kata"
+                        } else {
+                            "$words kata"
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.muted,
                     )
+                    if (sprintLeft > 0) {
+                        Text("·", color = colors.border)
+                        Text(
+                            String.format(
+                                Locale("id", "ID"),
+                                "sprint %d:%02d",
+                                sprintLeft / 60_000,
+                                (sprintLeft / 1_000) % 60,
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.accent,
+                        )
+                    }
                     Text("·", color = colors.border)
                     Text(
                         "sekitar ${Text.readingMinutes(words)} menit baca",
@@ -347,6 +496,22 @@ fun EditorScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = if (saved) colors.muted else colors.accent,
                     )
+                }
+                if (data.settings.chapterGoal > 0) {
+                    val chapterProgress = (words.toFloat() / data.settings.chapterGoal).coerceIn(0f, 1f)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(colors.border.copy(alpha = 0.3f)),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(chapterProgress)
+                                .height(2.dp)
+                                .background(colors.accent),
+                        )
+                    }
                 }
                 Box(
                     Modifier
@@ -362,9 +527,15 @@ fun EditorScreen(
                     modifier = Modifier.weight(1f),
                 )
             } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState),
+                ) {
                 BasicTextField(
                     value = value,
-                    onValueChange = { value = it },
+                    onValueChange = { next -> applyEdit(next) },
                     textStyle = TextStyle(
                         fontFamily = when (data.settings.font) {
                             "sans" -> FontFamily.SansSerif
@@ -394,9 +565,9 @@ fun EditorScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
                         .padding(horizontal = 22.dp, vertical = 16.dp),
                 )
+                }
             }
 
             if (!focusMode && !preview) {
@@ -416,6 +587,56 @@ fun EditorScreen(
                 )
             }
         }
+    }
+
+    if (showToc) {
+        val toc = data.chapters
+            .filter { it.bookId == chapter.bookId && it.deletedAt == null }
+            .sortedBy { it.order }
+        AlertDialog(
+            onDismissRequest = { showToc = false },
+            containerColor = colors.surface,
+            titleContentColor = colors.ink,
+            title = { Text(book?.title ?: "Daftar isi", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    toc.forEach { sibling ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    store.updateChapterBody(chapterId, value.text)
+                                    store.updateChapterTitle(chapterId, title)
+                                    showToc = false
+                                    if (sibling.id != chapter.id) onOpenChapter(sibling.id)
+                                }
+                                .padding(horizontal = 6.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                sibling.title.ifBlank { "Tanpa judul" },
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (sibling.id == chapter.id) colors.accent else colors.ink,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                "${Text.wordCount(sibling.body)} kata",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.muted,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showToc = false }) {
+                    Text("Tutup", color = colors.muted)
+                }
+            },
+        )
     }
 
     if (confirmDelete) {
@@ -485,6 +706,8 @@ private fun EditorBottomBar(
     onPhrase: () -> Unit,
     words: Int,
     chars: Int,
+    onPrev: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
 ) {
     val colors = LocalTintaColors.current
     Column(
@@ -504,6 +727,20 @@ private fun EditorBottomBar(
                 color = colors.muted,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = { onPrev?.invoke() }, enabled = onPrev != null) {
+                Icon(
+                    Icons.Default.ChevronLeft,
+                    contentDescription = "Bab sebelumnya",
+                    tint = if (onPrev != null) colors.muted else colors.border,
+                )
+            }
+            IconButton(onClick = { onNext?.invoke() }, enabled = onNext != null) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "Bab berikutnya",
+                    tint = if (onNext != null) colors.muted else colors.border,
+                )
+            }
             Text(
                 "Frasa",
                 style = MaterialTheme.typography.labelLarge,

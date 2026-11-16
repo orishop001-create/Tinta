@@ -408,6 +408,10 @@ class TintaStore(context: Context) {
         updateSettings { settings -> settings.copy(phrases = settings.phrases - phrase) }
     }
 
+    fun markBackupDone() {
+        updateSettings { settings -> settings.copy(lastBackupAt = now()) }
+    }
+
     fun exportJson(): String = json.encodeToString(
         AppData.serializer(),
         _state.value.copy(settings = _state.value.settings.copy(lastDocId = null))
