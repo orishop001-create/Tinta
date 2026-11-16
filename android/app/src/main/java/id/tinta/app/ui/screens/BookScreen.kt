@@ -67,6 +67,8 @@ fun BookScreen(
     onBack: () -> Unit,
     onOpenChapter: (String) -> Unit,
     onFeatures: () -> Unit,
+    onExportMarkdown: () -> Unit,
+    onExportPdf: () -> Unit,
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -124,6 +126,20 @@ fun BookScreen(
                                 onClick = {
                                     showMenu = false
                                     showAddVolume = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ekspor buku (Markdown)", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onExportMarkdown()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ekspor buku (PDF)", color = colors.ink) },
+                                onClick = {
+                                    showMenu = false
+                                    onExportPdf()
                                 },
                             )
                             DropdownMenuItem(

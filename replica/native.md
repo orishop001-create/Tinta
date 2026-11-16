@@ -90,3 +90,13 @@ single-activity app has to a main menu.
 Checks: `./gradlew :app:assembleDebug :app:lintDebug` run locally on a portable JDK 17 +
 Android SDK 35 (see the run notes in the commit), and the GitHub Actions workflow rebuilds the
 debug APK and source archive on push.
+
+## 2026-11-16 — Ekspor buku
+
+- `util/Export.kt` builds a whole book on device: Markdown (`bookMarkdown`), plain text
+  (`bookPlainText`) and a paginated A4 PDF via `android.graphics.pdf.PdfDocument` (`bookPdf`).
+  Volumes and chapter order are preserved; no dependency was added.
+- The book screen's three-dot menu gained "Ekspor buku (Markdown)" and "Ekspor buku (PDF)",
+  both writing through the system create-document picker (`ActivityResultContracts.CreateDocument`).
+- The feature sheet's export rows now run from `TintaApp`, so "Ekspor Markdown", the new
+  "Ekspor PDF" and "Bagikan buku" work from any screen that opens the sheet.

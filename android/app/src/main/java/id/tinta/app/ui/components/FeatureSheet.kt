@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.InsertChart
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -57,7 +58,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import id.tinta.app.ui.theme.LocalTintaColors
 
-enum class FeatureTarget { LIBRARY, BOOK, EDITOR, HISTORY, SEARCH, STATS, TRASH, SETTINGS }
+enum class FeatureTarget {
+    LIBRARY,
+    BOOK,
+    EDITOR,
+    HISTORY,
+    SEARCH,
+    STATS,
+    TRASH,
+    SETTINGS,
+    EXPORT_MARKDOWN,
+    EXPORT_PDF,
+    SHARE_BOOK,
+}
 
 data class FeatureTile(
     val icon: ImageVector,
@@ -68,8 +81,9 @@ data class FeatureTile(
 val coreTiles = listOf(
     FeatureTile(Icons.Filled.Palette, "Empat tema kertas", FeatureTarget.SETTINGS),
     FeatureTile(Icons.Filled.Code, "Pratinjau Markdown", FeatureTarget.EDITOR),
-    FeatureTile(Icons.Filled.Download, "Ekspor Markdown", FeatureTarget.EDITOR),
-    FeatureTile(Icons.Filled.Share, "Bagikan naskah", FeatureTarget.EDITOR),
+    FeatureTile(Icons.Filled.Download, "Ekspor Markdown", FeatureTarget.EXPORT_MARKDOWN),
+    FeatureTile(Icons.Filled.PictureAsPdf, "Ekspor PDF", FeatureTarget.EXPORT_PDF),
+    FeatureTile(Icons.Filled.Share, "Bagikan buku", FeatureTarget.SHARE_BOOK),
     FeatureTile(Icons.Filled.FindReplace, "Cari & ganti", FeatureTarget.SEARCH),
     FeatureTile(Icons.AutoMirrored.Filled.MenuBook, "Buku, bagian, bab", FeatureTarget.BOOK),
     FeatureTile(Icons.Filled.History, "Riwayat versi", FeatureTarget.HISTORY),

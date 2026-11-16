@@ -1,5 +1,9 @@
 package id.tinta.app.ui
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawing
@@ -11,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -30,13 +35,60 @@ import id.tinta.app.ui.screens.SettingsScreen
 import id.tinta.app.ui.screens.StatsScreen
 import id.tinta.app.ui.screens.TrashScreen
 import id.tinta.app.ui.theme.LocalTintaColors
+import id.tinta.app.util.Export
+import id.tinta.app.util.Text
 
 @Composable
 fun TintaApp(store: TintaStore) {
     val nav = rememberNavController()
     val colors = LocalTintaColors.current
+    val context = LocalContext.current
     val data by store.state.collectAsStateWithLifecycle()
     var featureBookId by remember { mutableStateOf<String?>(null) }
+    var pendingExport by remember { mutableStateOf<ByteArray?>(null) }
+
+    fun writeExport(uri: Uri?) {
+        val bytes = pendingExport ?: return
+        pendingExport = null
+        if (uri == null) return
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+        }
+    }
+
+    val markdownLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/markdown"),
+    ) { uri -> writeExport(uri) }
+    val pdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf"),
+    ) { uri -> writeExport(uri) }
+
+    fun chaptersOf(bookId: String) = data.chapters
+        .filter { it.bookId == bookId && it.deletedAt == null }
+        .sortedBy { it.order }
+
+    fun exportBook(bookId: String, pdf: Boolean) {
+        val book = data.books.firstOrNull { it.id == bookId } ?: return
+        val chapters = chaptersOf(bookId)
+        val name = Text.slugify(book.title)
+        if (pdf) {
+            pendingExport = Export.bookPdf(book, chapters)
+            pdfLauncher.launch("$name.pdf")
+        } else {
+            pendingExport = Export.bookMarkdown(book, chapters).toByteArray(Charsets.UTF_8)
+            markdownLauncher.launch("$name.md")
+        }
+    }
+
+    fun shareBook(bookId: String) {
+        val book = data.books.firstOrNull { it.id == bookId } ?: return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, book.title)
+            putExtra(Intent.EXTRA_TEXT, Export.bookPlainText(book, chaptersOf(bookId)))
+        }
+        context.startActivity(Intent.createChooser(intent, "Bagikan buku"))
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = colors.bg) {
         NavHost(
@@ -72,6 +124,8 @@ fun TintaApp(store: TintaStore) {
                         nav.navigate("editor/$chapterId")
                     },
                     onFeatures = { featureBookId = id },
+                    onExportMarkdown = { exportBook(id, pdf = false) },
+                    onExportPdf = { exportBook(id, pdf = true) },
                 )
             }
             composable(
@@ -131,9 +185,7 @@ fun TintaApp(store: TintaStore) {
 
         val sheetBookId = featureBookId
         if (sheetBookId != null) {
-            val lastChapter = data.chapters
-                .filter { it.bookId == sheetBookId && it.deletedAt == null }
-                .maxByOrNull { it.updatedAt }
+            val lastChapter = chaptersOf(sheetBookId).maxByOrNull { it.updatedAt }
 
             FeatureSheet(
                 onDismiss = { featureBookId = null },
@@ -163,6 +215,9 @@ fun TintaApp(store: TintaStore) {
                         FeatureTarget.STATS -> nav.navigate("stats") { launchSingleTop = true }
                         FeatureTarget.TRASH -> nav.navigate("trash") { launchSingleTop = true }
                         FeatureTarget.SETTINGS -> nav.navigate("settings") { launchSingleTop = true }
+                        FeatureTarget.EXPORT_MARKDOWN -> exportBook(sheetBookId, pdf = false)
+                        FeatureTarget.EXPORT_PDF -> exportBook(sheetBookId, pdf = true)
+                        FeatureTarget.SHARE_BOOK -> shareBook(sheetBookId)
                     }
                 },
             )
