@@ -126,3 +126,10 @@ debug APK and source archive on push.
   `word/document.xml`) with bold headings, so Word/Google Docs open it without a library.
 - The book menu and the feature sheet expose Markdown, PDF, EPUB and DOCX through the system
   create-document picker; nothing leaves the device.
+
+## 2026-11-16 — Cadangan otomatis saat aplikasi ditutup
+
+- `TintaStore.autoBackup()` writes `tinta-yyyyMMdd-HHmm.json` into the app's external files
+  folder (`Android/data/id.tinta.app/files/cadangan`) on every `onStop`, keeping the three newest
+  copies. No storage permission and no SAF dialog is needed, and Settings mentions it next to the
+  manual backup row.

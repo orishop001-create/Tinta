@@ -20,6 +20,7 @@ import java.time.format.DateTimeFormatter
 
 class TintaStore(context: Context) {
     private val file = File(context.filesDir, "tinta.json")
+    private val backupDir: File? = context.getExternalFilesDir("cadangan")
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -410,6 +411,23 @@ class TintaStore(context: Context) {
 
     fun markBackupDone() {
         updateSettings { settings -> settings.copy(lastBackupAt = now()) }
+    }
+
+    /** Simpan salinan JSON ke folder aplikasi setiap aplikasi ditutup, sisakan tiga terbaru. */
+    fun autoBackup(keep: Int = 3) {
+        val dir = backupDir ?: return
+        runCatching {
+            dir.mkdirs()
+            val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
+                .format(java.util.Date())
+            val target = File(dir, "tinta-$stamp.json")
+            if (!target.exists()) target.writeText(exportJson())
+            dir.listFiles()
+                ?.filter { it.isFile && it.name.endsWith(".json") }
+                ?.sortedByDescending { it.name }
+                ?.drop(keep)
+                ?.forEach { it.delete() }
+        }
     }
 
     fun exportJson(): String = json.encodeToString(

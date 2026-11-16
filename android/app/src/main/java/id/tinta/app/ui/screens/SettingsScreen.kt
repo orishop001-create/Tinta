@@ -324,6 +324,12 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.muted,
                     )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Cadangan otomatis juga ditulis ke folder aplikasi setiap aplikasi ditutup; tiga berkas terbaru disimpan.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
                     Spacer(Modifier.height(8.dp))
                     val overdue = settings.lastBackupAt == 0L ||
                         System.currentTimeMillis() - settings.lastBackupAt > 7L * 24 * 60 * 60 * 1000

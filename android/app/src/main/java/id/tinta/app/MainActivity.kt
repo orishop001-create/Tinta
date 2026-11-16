@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        store.autoBackup()
         store.flush()
         super.onStop()
     }
