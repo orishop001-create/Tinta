@@ -1,7 +1,9 @@
 package id.tinta.app.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,12 +38,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import id.tinta.app.data.Book
 import id.tinta.app.ui.theme.CoverGradients
 import id.tinta.app.ui.theme.LocalTintaColors
+import id.tinta.app.util.Covers
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -258,6 +265,19 @@ fun EmptyPanel(
 
 @Composable
 fun BookCover(book: Book, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val bitmap = remember(book.coverImage) { Covers.bitmap(context, book.coverImage) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Sampul ${book.title}",
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .then(Covers.aspect(book.coverRatio, bitmap)?.let { Modifier.aspectRatio(it) } ?: Modifier)
+                .clip(RoundedCornerShape(6.dp)),
+        )
+        return
+    }
     val gradient = CoverGradients[Math.floorMod(book.cover, CoverGradients.size)]
     Box(
         modifier = modifier

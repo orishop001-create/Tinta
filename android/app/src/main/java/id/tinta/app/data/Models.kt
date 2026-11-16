@@ -8,6 +8,8 @@ val DEFAULT_PHRASES = listOf("“", "”", "—", "…", "Tiba-tiba,", "Sementar
 data class Volume(
     val id: String,
     val title: String,
+    val coverImage: String? = null,
+    val coverRatio: String = "2:3",
 )
 
 @Serializable
@@ -16,6 +18,8 @@ data class Book(
     val title: String,
     val tags: List<String> = emptyList(),
     val cover: Int = 0,
+    val coverImage: String? = null,
+    val coverRatio: String = "2:3",
     val volumes: List<Volume> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
@@ -33,6 +37,8 @@ data class Chapter(
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long? = null,
+    val coverImage: String? = null,
+    val coverRatio: String = "2:3",
 )
 
 @Serializable
@@ -101,6 +107,7 @@ data class Settings(
     val lastBackupAt: Long = 0L,
     val lock: Boolean = false,
     val backupFolder: String? = null,
+    val fontFile: String? = null,
 )
 
 @Serializable

@@ -58,6 +58,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.tinta.app.data.TintaStore
 import id.tinta.app.util.AppLock
+import id.tinta.app.util.Fonts
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.PrimaryButton
 import id.tinta.app.ui.components.SecondaryButton
@@ -162,6 +163,23 @@ fun SettingsScreen(
         }
         store.updateSettings { it.copy(backupFolder = uri.toString()) }
         Toast.makeText(context, "Folder cadangan disimpan.", Toast.LENGTH_SHORT).show()
+    }
+
+    val fontLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val name = Fonts.install(context, uri)
+        if (name == null) {
+            Toast.makeText(
+                context,
+                "Berkas font tidak dikenali. Pakai TTF atau OTF.",
+                Toast.LENGTH_LONG,
+            ).show()
+        } else {
+            store.setFontFile(name)
+            Toast.makeText(context, "Font dipakai di editor.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Scaffold(
@@ -339,6 +357,42 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = if (settings.typewriter) colors.accent else colors.muted,
                         )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text("Font kustom", style = MaterialTheme.typography.titleMedium, color = colors.ink)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (settings.fontFile == null) {
+                            "Impor TTF/OTF milikmu sendiri untuk dipakai di editor naskah."
+                        } else {
+                            "Font milikmu aktif di editor. Bisa diganti atau dikembalikan ke bawaan."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.muted,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SecondaryButton(
+                            "Impor font",
+                            onClick = {
+                                fontLauncher.launch(
+                                    arrayOf(
+                                        "font/*",
+                                        "application/x-font-ttf",
+                                        "application/x-font-opentype",
+                                        "application/octet-stream",
+                                    ),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (settings.fontFile != null) {
+                            SecondaryButton(
+                                "Pakai bawaan",
+                                onClick = { store.setFontFile(null) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                     Spacer(Modifier.height(14.dp))
                     Text("Frasa cepat", style = MaterialTheme.typography.titleMedium, color = colors.ink)

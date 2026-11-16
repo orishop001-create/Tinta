@@ -330,6 +330,61 @@ class TintaStore(context: Context) {
         }
     }
 
+    fun setBookCover(id: String, image: String?, ratio: String = "2:3") {
+        val stamp = now()
+        update { data ->
+            data.copy(
+                books = data.books.map {
+                    if (it.id == id) it.copy(coverImage = image, coverRatio = ratio, updatedAt = stamp) else it
+                },
+            )
+        }
+    }
+
+    fun setVolumeCover(bookId: String, volumeId: String, image: String?, ratio: String = "2:3") {
+        val stamp = now()
+        update { data ->
+            data.copy(
+                books = data.books.map { book ->
+                    if (book.id == bookId) {
+                        book.copy(
+                            volumes = book.volumes.map { volume ->
+                                if (volume.id == volumeId) {
+                                    volume.copy(coverImage = image, coverRatio = ratio)
+                                } else {
+                                    volume
+                                }
+                            },
+                            updatedAt = stamp,
+                        )
+                    } else {
+                        book
+                    }
+                },
+            )
+        }
+    }
+
+    fun setChapterCover(id: String, image: String?, ratio: String = "2:3") {
+        val stamp = now()
+        update { data ->
+            data.copy(
+                chapters = data.chapters.map {
+                    if (it.id == id) it.copy(coverImage = image, coverRatio = ratio, updatedAt = stamp) else it
+                },
+            )
+        }
+    }
+
+    fun setFontFile(name: String?) {
+        updateSettings { settings ->
+            settings.copy(
+                fontFile = name,
+                font = if (name == null) "serif" else "custom",
+            )
+        }
+    }
+
     fun loreFor(bookId: String): List<LoreEntry> = _state.value.lore
         .filter { it.bookId == bookId }
         .sortedWith(compareBy({ it.kind }, { it.name.lowercase() }))

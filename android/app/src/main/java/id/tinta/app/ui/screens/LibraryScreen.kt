@@ -54,7 +54,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.tinta.app.data.Book
 import id.tinta.app.data.TintaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.ui.platform.LocalContext
 import id.tinta.app.ui.components.BookCover
+import id.tinta.app.ui.components.CoverFrameDialog
+import id.tinta.app.util.Covers
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.EmptyPanel
 import id.tinta.app.ui.components.IconAction
@@ -80,6 +86,18 @@ fun LibraryScreen(
     var showCreate by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Book?>(null) }
     var deleting by remember { mutableStateOf<Book?>(null) }
+    val context = LocalContext.current
+    var coverFor by remember { mutableStateOf<Book?>(null) }
+    var pendingCover by remember { mutableStateOf<String?>(null) }
+    val coverLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) {
+            coverFor = null
+            return@rememberLauncherForActivityResult
+        }
+        pendingCover = Covers.save(context, uri)
+    }
 
     val lastChapter = data.settings.lastDocId?.let { id ->
         data.chapters.firstOrNull { it.id == id && it.deletedAt == null }
@@ -152,6 +170,10 @@ fun LibraryScreen(
                         wordCount = chapters.sumOf { Text.wordCount(it.body) },
                         onClick = { onOpenBook(book.id) },
                         onEdit = { editing = book },
+                        onCover = {
+                            coverFor = book
+                            coverLauncher.launch("image/*")
+                        },
                         onDelete = { deleting = book },
                         onFeatures = { onFeatures(book.id) },
                     )
@@ -205,6 +227,24 @@ fun LibraryScreen(
         )
     }
 
+    val pending = pendingCover
+    if (pending != null) {
+        CoverFrameDialog(
+            image = pending,
+            initialRatio = coverFor?.coverRatio ?: "2:3",
+            onDismiss = {
+                Covers.delete(context, pending)
+                pendingCover = null
+                coverFor = null
+            },
+            onConfirm = { ratio ->
+                coverFor?.let { store.setBookCover(it.id, pending, ratio) }
+                pendingCover = null
+                coverFor = null
+            },
+        )
+    }
+
     deleting?.let { book ->
         ConfirmDialog(
             title = "Hapus “${book.title}”?",
@@ -232,7 +272,7 @@ private fun ResumeCard(book: Book, chapterTitle: String, updated: String, onClic
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BookCover(book, Modifier.width(45.dp).height(60.dp))
+        BookCover(book, Modifier.width(45.dp))
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -268,6 +308,7 @@ private fun BookRow(
     wordCount: Int,
     onClick: () -> Unit,
     onEdit: () -> Unit,
+    onCover: () -> Unit,
     onDelete: () -> Unit,
     onFeatures: () -> Unit,
 ) {
@@ -282,7 +323,7 @@ private fun BookRow(
             .padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BookCover(book, Modifier.width(46.dp).height(62.dp))
+        BookCover(book, Modifier.width(46.dp))
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -320,6 +361,19 @@ private fun BookRow(
                     onClick = {
                         menu = false
                         onEdit()
+                    },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (book.coverImage == null) "Pasang sampul" else "Ganti sampul",
+                            color = colors.ink,
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Default.Image, null, tint = colors.muted) },
+                    onClick = {
+                        menu = false
+                        onCover()
                     },
                 )
                 DropdownMenuItem(

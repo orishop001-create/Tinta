@@ -158,3 +158,16 @@ debug APK and source archive on push.
 - **Rilis**: `signingConfig` from `keystore.properties` (ignored) and `.github/workflows/release.yml`
   building a signed release APK per tag, uploaded to GitHub Releases.
 - **Urutan frasa cepat**: `movePhrase` exposed as ‹ › next to each chip.
+
+## 2026-11-16 — Sampul kustom dan font milik pengguna
+
+- `Book`, `Volume`, and `Chapter` gained `coverImage` + `coverRatio`. `Covers.save()` copies the picked
+  picture into `filesDir/sampul`, so no gallery permission is needed afterwards.
+- Cover pickers live in the library book menu, the book menu, the section menu, and the chapter menu;
+  each opens `CoverFrameDialog` with three frames — **2:3 (recommended)**, 9:16, and the photo's own
+  portrait ratio — plus a live preview before saving.
+- `BookCover` draws the image with the chosen aspect (gradient stays as fallback); `CoverThumb` shows
+  small covers in section headers and chapter rows.
+- Custom fonts: `Fonts.install()` copies a TTF/OTF into `filesDir/font` and validates it with
+  `Typeface.createFromFile`; Settings → Menulis → "Impor font" activates it, and the editor + the Aa
+  sheet use it through `FontFamily(Font(file))`. "Pakai bawaan" reverts to the bundled families.

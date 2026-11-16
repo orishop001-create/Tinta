@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -86,9 +87,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import id.tinta.app.data.Chapter
 import id.tinta.app.data.LoreEntry
+import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.components.ReadAloudDialog
 import id.tinta.app.ui.theme.TintaPalettes
+import id.tinta.app.util.Fonts
 import id.tinta.app.util.Tesaurus
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.IconAction
@@ -121,6 +124,9 @@ fun EditorScreen(
     val chapter = data.chapters.firstOrNull { it.id == chapterId && it.deletedAt == null }
     val book = chapter?.let { current -> data.books.firstOrNull { it.id == current.bookId } }
     val context = LocalContext.current
+    val bodyFont = remember(data.settings.font, data.settings.fontFile) {
+        editorFont(context, data.settings)
+    }
 
     if (chapter == null) {
         Scaffold(
@@ -622,11 +628,7 @@ fun EditorScreen(
                         applyEdit(next)
                     },
                     textStyle = TextStyle(
-                        fontFamily = when (data.settings.font) {
-                            "sans" -> FontFamily.SansSerif
-                            "mono" -> FontFamily.Monospace
-                            else -> FontFamily.Serif
-                        },
+                        fontFamily = bodyFont,
                         fontSize = data.settings.fontSize.sp,
                         lineHeight = (data.settings.fontSize * data.settings.lineHeight).sp,
                         color = colors.ink,
@@ -882,7 +884,14 @@ fun EditorScreen(
                 Text("Jenis huruf", style = MaterialTheme.typography.labelLarge, color = colors.ink)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("serif" to "Serif", "sans" to "Sans", "mono" to "Mono").forEach { (key, label) ->
+                    (
+                        listOf("serif" to "Serif", "sans" to "Sans", "mono" to "Mono") +
+                            if (data.settings.fontFile != null) {
+                                listOf("custom" to "Milikmu")
+                            } else {
+                                emptyList()
+                            }
+                        ).forEach { (key, label) ->
                         StyleChip(
                             label = label,
                             selected = data.settings.font == key,
@@ -916,11 +925,7 @@ fun EditorScreen(
                     "Contoh paragraf. Ia melangkah pelan ke arah jendela, menghitung setiap " +
                         "ketukan hujan yang jatuh di kusen.",
                     style = TextStyle(
-                        fontFamily = when (data.settings.font) {
-                            "sans" -> FontFamily.SansSerif
-                            "mono" -> FontFamily.Monospace
-                            else -> FontFamily.Serif
-                        },
+                        fontFamily = bodyFont,
                         fontSize = data.settings.fontSize.sp,
                         lineHeight = (data.settings.fontSize * data.settings.lineHeight).sp,
                     ),
@@ -1071,6 +1076,21 @@ fun EditorScreen(
 
     if (showRead) {
         ReadAloudDialog(text = value.text, onDismiss = { showRead = false })
+    }
+}
+
+private fun editorFont(context: android.content.Context, settings: Settings): FontFamily {
+    if (settings.font == "custom") {
+        val file = Fonts.file(context, settings.fontFile)
+        if (file != null) {
+            val family = runCatching { FontFamily(Font(file)) }.getOrNull()
+            if (family != null) return family
+        }
+    }
+    return when (settings.font) {
+        "sans" -> FontFamily.SansSerif
+        "mono" -> FontFamily.Monospace
+        else -> FontFamily.Serif
     }
 }
 

@@ -1,5 +1,7 @@
 package id.tinta.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -47,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +59,8 @@ import id.tinta.app.data.Chapter
 import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.components.BookCover
 import id.tinta.app.ui.components.ConfirmDialog
+import id.tinta.app.ui.components.CoverFrameDialog
+import id.tinta.app.ui.components.CoverThumb
 import id.tinta.app.ui.components.EmptyPanel
 import id.tinta.app.ui.components.IconAction
 import id.tinta.app.ui.components.PrimaryButton
@@ -62,6 +68,7 @@ import id.tinta.app.ui.components.TagPill
 import id.tinta.app.ui.components.TintaTextField
 import id.tinta.app.ui.components.TintaTopBar
 import id.tinta.app.ui.theme.LocalTintaColors
+import id.tinta.app.util.Covers
 import id.tinta.app.util.Text
 
 @Composable
@@ -87,6 +94,20 @@ fun BookScreen(
     var deleteVolume by remember { mutableStateOf<String?>(null) }
     var deleteChapter by remember { mutableStateOf<Chapter?>(null) }
     var moveChapter by remember { mutableStateOf<Chapter?>(null) }
+    var coverTarget by remember { mutableStateOf<CoverTarget?>(null) }
+    var pendingCover by remember { mutableStateOf<String?>(null) }
+    var volumeMenu by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val coverLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) {
+            coverTarget = null
+            return@rememberLauncherForActivityResult
+        }
+        pendingCover = Covers.save(context, uri)
+        if (pendingCover == null) coverTarget = null
+    }
 
     if (book == null) {
         Scaffold(
@@ -177,6 +198,15 @@ fun BookScreen(
                                 },
                             )
                             DropdownMenuItem(
+                                text = { Text("Ganti sampul buku", color = colors.ink) },
+                                leadingIcon = { Icon(Icons.Default.Image, null, tint = colors.muted) },
+                                onClick = {
+                                    showMenu = false
+                                    coverTarget = CoverTarget("book", book.id, null)
+                                    coverLauncher.launch("image/*")
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Story Bible", color = colors.ink) },
                                 onClick = {
                                     showMenu = false
@@ -217,7 +247,7 @@ fun BookScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    BookCover(book, Modifier.width(52.dp).height(70.dp))
+                    BookCover(book, Modifier.width(52.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         if (book.tags.isNotEmpty()) {
@@ -260,6 +290,14 @@ fun BookScreen(
                                     .padding(top = 9.dp, bottom = 1.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                if (volume?.coverImage != null) {
+                                    CoverThumb(
+                                        image = volume.coverImage,
+                                        ratio = volume.coverRatio,
+                                        modifier = Modifier.width(26.dp),
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
                                 Text(
                                     volume?.title ?: "Tanpa bagian",
                                     style = MaterialTheme.typography.titleMedium,
@@ -272,12 +310,41 @@ fun BookScreen(
                                     color = colors.muted,
                                 )
                                 if (volume != null) {
-                                    IconButton(onClick = { deleteVolume = volume.id }) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Hapus bagian",
-                                            tint = colors.muted,
-                                        )
+                                    Box {
+                                        IconButton(onClick = { volumeMenu = volume.id }) {
+                                            Icon(
+                                                Icons.Default.MoreVert,
+                                                contentDescription = "Menu bagian",
+                                                tint = colors.muted,
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = volumeMenu == volume.id,
+                                            onDismissRequest = { volumeMenu = null },
+                                            containerColor = colors.surface,
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Ganti sampul bagian", color = colors.ink) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Default.Image, null, tint = colors.muted)
+                                                },
+                                                onClick = {
+                                                    volumeMenu = null
+                                                    coverTarget = CoverTarget("volume", book.id, volume.id)
+                                                    coverLauncher.launch("image/*")
+                                                },
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Hapus bagian", color = colors.danger) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Default.Delete, null, tint = colors.danger)
+                                                },
+                                                onClick = {
+                                                    volumeMenu = null
+                                                    deleteVolume = volume.id
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -293,6 +360,10 @@ fun BookScreen(
                                 onDelete = { deleteChapter = chapter },
                                 onFeatures = onFeatures,
                                 onReorder = { delta -> reorder(chapter.id, delta) },
+                                onCover = {
+                                    coverTarget = CoverTarget("chapter", book.id, chapter.id)
+                                    coverLauncher.launch("image/*")
+                                },
                             )
                         }
                     }
@@ -374,6 +445,34 @@ fun BookScreen(
         )
     }
 
+    val pending = pendingCover
+    val target = coverTarget
+    if (pending != null && target != null) {
+        val initial = when (target.kind) {
+            "book" -> book.coverRatio
+            "volume" -> book.volumes.firstOrNull { it.id == target.id }?.coverRatio ?: "2:3"
+            else -> data.chapters.firstOrNull { it.id == target.id }?.coverRatio ?: "2:3"
+        }
+        CoverFrameDialog(
+            image = pending,
+            initialRatio = initial,
+            onDismiss = {
+                Covers.delete(context, pending)
+                pendingCover = null
+                coverTarget = null
+            },
+            onConfirm = { ratio ->
+                when (target.kind) {
+                    "book" -> store.setBookCover(book.id, pending, ratio)
+                    "volume" -> target.id?.let { store.setVolumeCover(book.id, it, pending, ratio) }
+                    else -> target.id?.let { store.setChapterCover(it, pending, ratio) }
+                }
+                pendingCover = null
+                coverTarget = null
+            },
+        )
+    }
+
     moveChapter?.let { chapter ->
         MoveChapterDialog(
             volumes = book.volumes,
@@ -386,6 +485,8 @@ fun BookScreen(
         )
     }
 }
+
+private data class CoverTarget(val kind: String, val bookId: String, val id: String?)
 
 @Composable
 private fun SecondaryAddButton(text: String, onClick: () -> Unit) {
@@ -412,6 +513,7 @@ private fun ChapterRow(
     onDelete: () -> Unit,
     onFeatures: () -> Unit,
     onReorder: (Int) -> Unit,
+    onCover: () -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var menu by remember { mutableStateOf(false) }
@@ -448,6 +550,13 @@ private fun ChapterRow(
                     )
                 },
         )
+        if (chapter.coverImage != null) {
+            CoverThumb(
+                image = chapter.coverImage,
+                ratio = chapter.coverRatio,
+                modifier = Modifier.width(24.dp).padding(end = 4.dp),
+            )
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 chapter.title.ifBlank { "Tanpa judul" },
@@ -479,6 +588,14 @@ private fun ChapterRow(
                     onClick = {
                         menu = false
                         onMove()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Sampul bab", color = colors.ink) },
+                    leadingIcon = { Icon(Icons.Default.Image, null, tint = colors.muted) },
+                    onClick = {
+                        menu = false
+                        onCover()
                     },
                 )
                 DropdownMenuItem(
