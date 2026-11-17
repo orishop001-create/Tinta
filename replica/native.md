@@ -240,3 +240,12 @@ dipakai implisit oleh `by`). Hasil yang dihapus:
 `verticalScroll` dan `rememberScrollState` tetap dipertahankan di EditorScreen karena masih dipakai
 dialog catatan/tipografi dan bilah horizontal; yang benar-benar yatim adalah `scrollState` milik
 badan naskah.
+
+## 2026-11-17 — Satu pintu ekspor buku
+
+- `ExportBookDialog` (components) jadi satu-satunya tempat memilih format: Markdown, PDF, EPUB, DOCX,
+  masing-masing dengan keterangan singkat. Dialog menutup dirinya sebelum membuka pemilih berkas.
+- Menu buku di layar buku kini hanya punya satu entri **Ekspor buku** (sebelumnya empat baris
+  terpisah), dan menu buku di pustaka mendapat entri yang sama sehingga ekspor bisa dimulai dari rak.
+- `LibraryScreen` menerima empat callback ekspor per `bookId`, diteruskan `TintaApp` ke
+  `exportBook/exportEpub/exportDocx` yang sudah ada.

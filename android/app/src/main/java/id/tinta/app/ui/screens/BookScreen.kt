@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.CropFree
@@ -62,6 +63,7 @@ import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.CoverFrameDialog
 import id.tinta.app.ui.components.CoverThumb
 import id.tinta.app.ui.components.EmptyPanel
+import id.tinta.app.ui.components.ExportBookDialog
 import id.tinta.app.ui.components.IconAction
 import id.tinta.app.ui.components.TagPill
 import id.tinta.app.ui.components.TintaTextField
@@ -89,6 +91,7 @@ fun BookScreen(
     var showAddChapter by remember { mutableStateOf(false) }
     var showAddVolume by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showExport by remember { mutableStateOf(false) }
     var deleteBook by remember { mutableStateOf(false) }
     var deleteVolume by remember { mutableStateOf<String?>(null) }
     var deleteChapter by remember { mutableStateOf<Chapter?>(null) }
@@ -181,31 +184,13 @@ fun BookScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Ekspor buku (Markdown)", color = colors.ink) },
-                                onClick = {
-                                    showMenu = false
-                                    onExportMarkdown()
+                                text = { Text("Ekspor buku", color = colors.ink) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Download, null, tint = colors.muted)
                                 },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Ekspor buku (PDF)", color = colors.ink) },
                                 onClick = {
                                     showMenu = false
-                                    onExportPdf()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Ekspor buku (EPUB)", color = colors.ink) },
-                                onClick = {
-                                    showMenu = false
-                                    onExportEpub()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Ekspor buku (DOCX)", color = colors.ink) },
-                                onClick = {
-                                    showMenu = false
-                                    onExportDocx()
+                                    showExport = true
                                 },
                             )
                             if (book.coverImage != null) {
@@ -527,6 +512,17 @@ fun BookScreen(
                 pendingCover = null
                 coverTarget = null
             },
+        )
+    }
+
+    if (showExport) {
+        ExportBookDialog(
+            title = book.title,
+            onDismiss = { showExport = false },
+            onMarkdown = onExportMarkdown,
+            onPdf = onExportPdf,
+            onEpub = onExportEpub,
+            onDocx = onExportDocx,
         )
     }
 

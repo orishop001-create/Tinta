@@ -131,6 +131,10 @@ fun TintaApp(store: TintaStore) {
                     onStats = { nav.navigate("stats") },
                     onSettings = { nav.navigate("settings") },
                     onFeatures = { bookId -> featureBookId = bookId },
+                    onExportMarkdown = { bookId -> exportBook(bookId, pdf = false) },
+                    onExportPdf = { bookId -> exportBook(bookId, pdf = true) },
+                    onExportEpub = { bookId -> exportEpub(bookId) },
+                    onExportDocx = { bookId -> exportDocx(bookId) },
                 )
             }
             composable(

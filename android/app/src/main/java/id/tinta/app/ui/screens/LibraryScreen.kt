@@ -57,10 +57,12 @@ import id.tinta.app.data.TintaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.ui.platform.LocalContext
 import id.tinta.app.ui.components.BookCover
 import id.tinta.app.ui.components.CoverFrameDialog
+import id.tinta.app.ui.components.ExportBookDialog
 import id.tinta.app.util.Covers
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.EmptyPanel
@@ -81,12 +83,17 @@ fun LibraryScreen(
     onStats: () -> Unit,
     onSettings: () -> Unit,
     onFeatures: (String) -> Unit,
+    onExportMarkdown: (String) -> Unit = {},
+    onExportPdf: (String) -> Unit = {},
+    onExportEpub: (String) -> Unit = {},
+    onExportDocx: (String) -> Unit = {},
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
     var showCreate by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Book?>(null) }
     var deleting by remember { mutableStateOf<Book?>(null) }
+    var exportFor by remember { mutableStateOf<Book?>(null) }
     val context = LocalContext.current
     var coverFor by remember { mutableStateOf<Book?>(null) }
     var pendingCover by remember { mutableStateOf<String?>(null) }
@@ -183,6 +190,7 @@ fun LibraryScreen(
                         wordCount = stat?.second ?: 0,
                         onClick = { onOpenBook(book.id) },
                         onEdit = { editing = book },
+                        onExport = { exportFor = book },
                         onCover = {
                             coverFor = book
                             coverLauncher.launch("image/*")
@@ -242,6 +250,17 @@ fun LibraryScreen(
                     editing = null
                 }
             },
+        )
+    }
+
+    exportFor?.let { book ->
+        ExportBookDialog(
+            title = book.title,
+            onDismiss = { exportFor = null },
+            onMarkdown = { onExportMarkdown(book.id) },
+            onPdf = { onExportPdf(book.id) },
+            onEpub = { onExportEpub(book.id) },
+            onDocx = { onExportDocx(book.id) },
         )
     }
 
@@ -329,6 +348,7 @@ private fun BookRow(
     wordCount: Int,
     onClick: () -> Unit,
     onEdit: () -> Unit,
+    onExport: () -> Unit,
     onCover: () -> Unit,
     onFrame: () -> Unit,
     onDelete: () -> Unit,
@@ -406,6 +426,14 @@ private fun BookRow(
                     onClick = {
                         menu = false
                         onCover()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Ekspor buku", color = colors.ink) },
+                    leadingIcon = { Icon(Icons.Default.Download, null, tint = colors.muted) },
+                    onClick = {
+                        menu = false
+                        onExport()
                     },
                 )
                 DropdownMenuItem(
