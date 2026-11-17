@@ -95,11 +95,19 @@ fun LibraryScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri == null) {
+            pendingIsNew = false
             coverFor = null
             return@rememberLauncherForActivityResult
         }
         pendingCover = Covers.save(context, uri)
-        pendingIsNew = true
+        pendingIsNew = pendingCover != null
+    }
+
+    val stats = remember(data.chapters) {
+        data.chapters
+            .filter { it.deletedAt == null }
+            .groupBy { it.bookId }
+            .mapValues { (_, list) -> list.size to list.sumOf { Text.wordCount(it.body) } }
     }
 
     val lastChapter = data.settings.lastDocId?.let { id ->
@@ -165,12 +173,12 @@ fun LibraryScreen(
                     )
                 }
             } else {
-                items(data.books, key = { it.id }) { book ->
-                    val chapters = data.chapters.filter { it.bookId == book.id && it.deletedAt == null }
+                items(data.books, key = { it.id }, contentType = { "book" }) { book ->
+                    val stat = stats[book.id]
                     BookRow(
                         book = book,
-                        chapterCount = chapters.size,
-                        wordCount = chapters.sumOf { Text.wordCount(it.body) },
+                        chapterCount = stat?.first ?: 0,
+                        wordCount = stat?.second ?: 0,
                         onClick = { onOpenBook(book.id) },
                         onEdit = { editing = book },
                         onCover = {
@@ -241,7 +249,7 @@ fun LibraryScreen(
             image = pending,
             initialRatio = coverFor?.coverRatio ?: "2:3",
             onDismiss = {
-                if (pendingIsNew) Covers.delete(context, pending)
+                if (pendingIsNew) store.discardUnusedCover(pending)
                 pendingIsNew = false
                 pendingCover = null
                 coverFor = null

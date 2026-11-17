@@ -104,11 +104,12 @@ fun BookScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri == null) {
+            pendingIsNew = false
             coverTarget = null
             return@rememberLauncherForActivityResult
         }
         pendingCover = Covers.save(context, uri)
-        pendingIsNew = true
+        pendingIsNew = pendingCover != null
         if (pendingCover == null) coverTarget = null
     }
 
@@ -129,12 +130,19 @@ fun BookScreen(
         return
     }
 
-    val chapters = data.chapters
-        .filter { it.bookId == book.id && it.deletedAt == null }
-        .sortedBy { it.order }
-    val groups = book.volumes.map { volume ->
-        volume to chapters.filter { it.volumeId == volume.id }
-    } + (null to chapters.filter { it.volumeId == null || book.volumes.none { volume -> volume.id == it.volumeId } })
+    val chapters = remember(data.chapters, book.id) {
+        data.chapters
+            .filter { it.bookId == book.id && it.deletedAt == null }
+            .sortedBy { it.order }
+    }
+    val groups = remember(book.volumes, chapters) {
+        book.volumes.map { volume ->
+            volume to chapters.filter { it.volumeId == volume.id }
+        } + (null to chapters.filter {
+            it.volumeId == null || book.volumes.none { volume -> volume.id == it.volumeId }
+        })
+    }
+    val totalWords = remember(chapters) { chapters.sumOf { Text.wordCount(it.body) } }
 
     fun reorder(chapterId: String, delta: Int) {
         val ordered = data.chapters
@@ -154,7 +162,7 @@ fun BookScreen(
         topBar = {
             TintaTopBar(
                 title = book.title,
-                subtitle = "${chapters.size} bab · ${chapters.sumOf { Text.wordCount(it.body) }} kata",
+                subtitle = "${chapters.size} bab · $totalWords kata",
                 onBack = onBack,
                 actions = {
                     IconAction(Icons.Default.Add, "Bab baru") { showAddChapter = true }
@@ -390,7 +398,7 @@ fun BookScreen(
                                 }
                             }
                         }
-                        items(docs, key = { it.id }) { chapter ->
+                        items(docs, key = { it.id }, contentType = { "chapter" }) { chapter ->
                             ChapterRow(
                                 chapter = chapter,
                                 onClick = { onOpenChapter(chapter.id) },
@@ -406,6 +414,7 @@ fun BookScreen(
                                     coverLauncher.launch("image/*")
                                 },
                                 onFrame = {
+                                    pendingIsNew = false
                                     coverTarget = CoverTarget("chapter", book.id, chapter.id)
                                     pendingCover = chapter.coverImage
                                 },
@@ -502,7 +511,7 @@ fun BookScreen(
             image = pending,
             initialRatio = initial,
             onDismiss = {
-                if (pendingIsNew) Covers.delete(context, pending)
+                if (pendingIsNew) store.discardUnusedCover(pending)
                 pendingIsNew = false
                 pendingCover = null
                 coverTarget = null
@@ -615,7 +624,8 @@ private fun ChapterRow(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "${Text.wordCount(chapter.body)} kata · ${Text.relative(chapter.updatedAt)}",
+                "${remember(chapter.body) { Text.wordCount(chapter.body) }} kata · " +
+                    Text.relative(chapter.updatedAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.muted,
             )

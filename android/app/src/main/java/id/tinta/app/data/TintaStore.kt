@@ -352,6 +352,16 @@ class TintaStore(context: Context) {
         runCatching { Covers.delete(appContext, name) }
     }
 
+    /** Hapus salinan sampul yang tidak dipakai siapa pun; berkas aktif selalu aman. */
+    fun discardUnusedCover(name: String?) {
+        if (name.isNullOrBlank()) return
+        val data = _state.value
+        val used = data.books.any { it.coverImage == name } ||
+            data.books.any { book -> book.volumes.any { it.coverImage == name } } ||
+            data.chapters.any { it.coverImage == name }
+        if (!used) dropCover(name)
+    }
+
     fun setBookCover(id: String, image: String?, ratio: String = "2:3") {
         val before = _state.value.books.firstOrNull { it.id == id }?.coverImage
         val stamp = now()

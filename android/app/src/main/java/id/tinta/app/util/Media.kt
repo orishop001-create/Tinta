@@ -29,26 +29,42 @@ object Covers {
         return File(dir(context), name).takeIf { it.exists() }
     }
 
+    // Sampul yang sudah terdekode disimpan di memori supaya menggulir tidak memicu decode ulang.
+    private val cache = object : android.util.LruCache<String, Bitmap>(24) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+    }
+
+    fun cached(name: String?, max: Int): Bitmap? = name?.let { cache.get("$it@$max") }
+
     fun bitmap(context: Context, name: String?, max: Int = 720): Bitmap? {
+        if (name.isNullOrBlank()) return null
+        cached(name, max)?.let { return it }
         val target = file(context, name) ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(target.absolutePath, bounds)
         var sample = 1
         while (bounds.outWidth / sample > max || bounds.outHeight / sample > max) sample *= 2
-        return BitmapFactory.decodeFile(
+        val decoded = BitmapFactory.decodeFile(
             target.absolutePath,
             BitmapFactory.Options().apply { inSampleSize = sample },
-        )
+        ) ?: return null
+        cache.put("$name@$max", decoded)
+        return decoded
     }
 
     fun delete(context: Context, name: String?) {
-        runCatching { file(context, name)?.delete() }
+        runCatching {
+            if (name != null) {
+                cache.snapshot().keys.filter { it.startsWith("$name@") }.forEach(cache::remove)
+            }
+            file(context, name)?.delete()
+        }
     }
 
     /** Rasio bingkai sampul: 2:3 disarankan, 9:16, atau mengikuti potret foto aslinya. */
-    fun aspect(ratio: String, bitmap: Bitmap? = null): Float? = when (ratio) {
+    fun aspect(ratio: String, width: Int = 0, height: Int = 0): Float? = when (ratio) {
         "9:16" -> 9f / 16f
-        "asli" -> bitmap?.let { if (it.height > 0) it.width.toFloat() / it.height else null }
+        "asli" -> if (width > 0 && height > 0) width.toFloat() / height else null
         else -> 2f / 3f
     }
 

@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,25 +27,42 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import id.tinta.app.ui.theme.LocalTintaColors
 import id.tinta.app.util.Covers
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/** Dekode sampul di luar main thread, dengan cache supaya gulir tidak tersendat. */
+@Composable
+fun rememberCover(name: String?, max: Int = 480): ImageBitmap? {
+    val context = LocalContext.current
+    val key = name.orEmpty()
+    var image by remember(key, max) { mutableStateOf(Covers.cached(key, max)?.asImageBitmap()) }
+    LaunchedEffect(key, max) {
+        if (key.isBlank() || image != null) return@LaunchedEffect
+        image = withContext(Dispatchers.IO) { Covers.bitmap(context, key, max)?.asImageBitmap() }
+    }
+    return image
+}
 
 /** Sampul kecil untuk bagian dan bab; hanya tampil kalau gambarnya ada. */
 @Composable
 fun CoverThumb(image: String?, ratio: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val bitmap = remember(image) { Covers.bitmap(context, image) }
-    if (bitmap == null) return
+    val picture = rememberCover(image, 240) ?: return
     Image(
-        bitmap = bitmap.asImageBitmap(),
+        bitmap = picture,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .then(Covers.aspect(ratio, bitmap)?.let { Modifier.aspectRatio(it) } ?: Modifier)
+            .then(
+                Covers.aspect(ratio, picture.width, picture.height)
+                    ?.let { Modifier.aspectRatio(it) } ?: Modifier,
+            )
             .clip(RoundedCornerShape(5.dp)),
     )
 }
@@ -61,7 +79,7 @@ fun CoverFrameDialog(
     val context = LocalContext.current
     val bitmap = remember(image) { Covers.bitmap(context, image) }
     var ratio by remember(image) { mutableStateOf(initialRatio.ifBlank { "2:3" }) }
-    val aspect = Covers.aspect(ratio, bitmap)
+    val aspect = Covers.aspect(ratio, bitmap?.width ?: 0, bitmap?.height ?: 0)
 
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -618,8 +618,7 @@ fun EditorScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(scrollState),
+                        .weight(1f),
                 ) {
                 BasicTextField(
                     value = value,
@@ -652,6 +651,7 @@ fun EditorScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f)
                         .padding(horizontal = 22.dp, vertical = 16.dp),
                 )
                 }

@@ -265,15 +265,17 @@ fun EmptyPanel(
 
 @Composable
 fun BookCover(book: Book, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val bitmap = remember(book.coverImage) { Covers.bitmap(context, book.coverImage) }
-    if (bitmap != null) {
+    val picture = rememberCover(book.coverImage, 480)
+    if (picture != null) {
         Image(
-            bitmap = bitmap.asImageBitmap(),
+            bitmap = picture,
             contentDescription = "Sampul ${book.title}",
             contentScale = ContentScale.Crop,
             modifier = modifier
-                .then(Covers.aspect(book.coverRatio, bitmap)?.let { Modifier.aspectRatio(it) } ?: Modifier)
+                .then(
+                    Covers.aspect(book.coverRatio, picture.width, picture.height)
+                        ?.let { Modifier.aspectRatio(it) } ?: Modifier,
+                )
                 .clip(RoundedCornerShape(6.dp)),
         )
         return

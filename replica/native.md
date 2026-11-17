@@ -183,3 +183,17 @@ debug APK and source archive on push.
 - `Export.bookPdf` draws the book cover on the title page (max 200×280 pt, centred).
 - `Export.bookEpub` embeds `OEBPS/cover.jpg`, adds `cover.xhtml`, the `cover-image` manifest item and
   a leading spine entry, plus the legacy `<meta name="cover">` hint.
+
+## 2026-11-17 — Perbaikan bingkai bab dan gulir yang lebih ringan
+
+- Bug: "Bingkai sampul bab" now resets `pendingIsNew`, and every dismiss path calls
+  `TintaStore.discardUnusedCover()`, which refuses to delete any file still referenced by a book,
+  section, or chapter. Frame-only paths therefore never touch the stored image.
+- `Covers` keeps an `LruCache` of decoded bitmaps; `rememberCover()` decodes on `Dispatchers.IO`
+  and reuses the cache, so list scrolling no longer decodes images on the main thread.
+- `BookCover`/`CoverThumb` request 480/240 px copies instead of 720 px, lowering memory churn.
+- Word totals are no longer recomputed per frame: the library derives a per-book stats map once,
+  the book screen memoises its chapter list and word total, and chapter rows remember their count.
+- The editor body no longer sits inside `verticalScroll`; the constrained `BasicTextField` scrolls
+  its own layout, so dragging a long chapter only redraws visible lines.
+- Lazy lists declare `contentType` so Compose can reuse row layouts while scrolling.
