@@ -30,8 +30,10 @@ object Covers {
     }
 
     // Sampul yang sudah terdekode disimpan di memori supaya menggulir tidak memicu decode ulang.
-    private val cache = object : android.util.LruCache<String, Bitmap>(24) {
-        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+    // sizeOf memakai satuan KB, jadi kapasitasnya juga KB: 24 MB cukup untuk puluhan sampul.
+    private const val CACHE_KB = 24 * 1024
+    private val cache = object : android.util.LruCache<String, Bitmap>(CACHE_KB) {
+        override fun sizeOf(key: String, value: Bitmap): Int = maxOf(1, value.byteCount / 1024)
     }
 
     fun cached(name: String?, max: Int): Bitmap? = name?.let { cache.get("$it@$max") }

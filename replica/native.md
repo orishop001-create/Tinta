@@ -197,3 +197,13 @@ debug APK and source archive on push.
 - The editor body no longer sits inside `verticalScroll`; the constrained `BasicTextField` scrolls
   its own layout, so dragging a long chapter only redraws visible lines.
 - Lazy lists declare `contentType` so Compose can reuse row layouts while scrolling.
+
+## 2026-11-17 — Perbaikan kapasitas cache sampul
+
+- `Covers` cache sebelumnya memakai `sizeOf` dalam KB tetapi `maxSize` 24, sehingga satu sampul
+  langsung mengusir dirinya sendiri dan cache praktis tidak pernah terisi. Kapasitas kini
+  `24 * 1024` KB (24 MB) dengan `sizeOf` minimal 1 KB, cukup untuk belasan sampul 480 px dan
+  puluhan thumbnail 240 px tanpa decode ulang saat menggulir.
+- Editor: `CoreTextField` milik Compose 1.7.6 memang membawa `TextFieldScrollerPosition` dan
+  `VerticalScrollLayoutModifier` (diperiksa dari `foundation-release.aar`), jadi badan naskah yang
+  tingginya dibatasi `weight(1f)` menggulir sendiri dan kursor ikut digeser ke area terlihat.
