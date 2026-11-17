@@ -97,20 +97,22 @@ fun BookScreen(
     var moveChapter by remember { mutableStateOf<Chapter?>(null) }
     var coverTarget by remember { mutableStateOf<CoverTarget?>(null) }
     var pendingCover by remember { mutableStateOf<String?>(null) }
-    var pendingIsNew by remember { mutableStateOf(false) }
+    // Berkas yang benar-benar baru dibuat oleh pemilih gambar; hanya ini yang boleh dihapus.
+    var newCoverFile by remember { mutableStateOf<String?>(null) }
     var volumeMenu by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val coverLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri == null) {
-            pendingIsNew = false
+            newCoverFile = null
             coverTarget = null
             return@rememberLauncherForActivityResult
         }
-        pendingCover = Covers.save(context, uri)
-        pendingIsNew = pendingCover != null
-        if (pendingCover == null) coverTarget = null
+        val saved = Covers.save(context, uri)
+        pendingCover = saved
+        newCoverFile = saved
+        if (saved == null) coverTarget = null
     }
 
     if (book == null) {
@@ -216,7 +218,7 @@ fun BookScreen(
                                     },
                                     onClick = {
                                         showMenu = false
-                                        pendingIsNew = false
+                                        newCoverFile = null
                                         coverTarget = CoverTarget("book", book.id, null)
                                         pendingCover = book.coverImage
                                     },
@@ -362,7 +364,7 @@ fun BookScreen(
                                                     },
                                                     onClick = {
                                                         volumeMenu = null
-                                                        pendingIsNew = false
+                                                        newCoverFile = null
                                                         coverTarget = CoverTarget(
                                                             "volume",
                                                             book.id,
@@ -414,7 +416,7 @@ fun BookScreen(
                                     coverLauncher.launch("image/*")
                                 },
                                 onFrame = {
-                                    pendingIsNew = false
+                                    newCoverFile = null
                                     coverTarget = CoverTarget("chapter", book.id, chapter.id)
                                     pendingCover = chapter.coverImage
                                 },
@@ -511,8 +513,9 @@ fun BookScreen(
             image = pending,
             initialRatio = initial,
             onDismiss = {
-                if (pendingIsNew) store.discardUnusedCover(pending)
-                pendingIsNew = false
+                // Hanya salinan dari pemilih yang dihapus, dan hanya bila tidak dipakai.
+                newCoverFile?.let { store.discardUnusedCover(it) }
+                newCoverFile = null
                 pendingCover = null
                 coverTarget = null
             },
@@ -522,7 +525,7 @@ fun BookScreen(
                     "volume" -> target.id?.let { store.setVolumeCover(book.id, it, pending, ratio) }
                     else -> target.id?.let { store.setChapterCover(it, pending, ratio) }
                 }
-                pendingIsNew = false
+                newCoverFile = null
                 pendingCover = null
                 coverTarget = null
             },

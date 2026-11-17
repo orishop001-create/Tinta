@@ -207,3 +207,11 @@ debug APK and source archive on push.
 - Editor: `CoreTextField` milik Compose 1.7.6 memang membawa `TextFieldScrollerPosition` dan
   `VerticalScrollLayoutModifier` (diperiksa dari `foundation-release.aar`), jadi badan naskah yang
   tingginya dibatasi `weight(1f)` menggulir sendiri dan kursor ikut digeser ke area terlihat.
+
+## 2026-11-17 — Hapus berkas sampul hanya berdasarkan berkas pilihan baru
+
+- `pendingIsNew: Boolean` diganti `newCoverFile: String?` di pustaka dan layar buku. Nilainya hanya
+  diisi oleh hasil pemilih gambar, dan setiap jalur bingkai (buku, bagian, bab) mengosongkannya.
+- Pembatalan dialog menghapus tepat satu berkas yang tercatat di `newCoverFile`, lewat
+  `TintaStore.discardUnusedCover()` yang tetap menolak berkas yang masih dirujuk. Konfirmasi juga
+  mengosongkan catatan itu, jadi bingkai hanya mengubah rasio tanpa menyentuh berkas mana pun.

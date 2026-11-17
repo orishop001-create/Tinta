@@ -90,17 +90,19 @@ fun LibraryScreen(
     val context = LocalContext.current
     var coverFor by remember { mutableStateOf<Book?>(null) }
     var pendingCover by remember { mutableStateOf<String?>(null) }
-    var pendingIsNew by remember { mutableStateOf(false) }
+    // Berkas yang benar-benar baru dibuat oleh pemilih gambar; hanya ini yang boleh dihapus.
+    var newCoverFile by remember { mutableStateOf<String?>(null) }
     val coverLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri == null) {
-            pendingIsNew = false
+            newCoverFile = null
             coverFor = null
             return@rememberLauncherForActivityResult
         }
-        pendingCover = Covers.save(context, uri)
-        pendingIsNew = pendingCover != null
+        val saved = Covers.save(context, uri)
+        pendingCover = saved
+        newCoverFile = saved
     }
 
     val stats = remember(data.chapters) {
@@ -186,7 +188,7 @@ fun LibraryScreen(
                             coverLauncher.launch("image/*")
                         },
                         onFrame = {
-                            pendingIsNew = false
+                            newCoverFile = null
                             coverFor = book
                             pendingCover = book.coverImage
                         },
@@ -249,14 +251,15 @@ fun LibraryScreen(
             image = pending,
             initialRatio = coverFor?.coverRatio ?: "2:3",
             onDismiss = {
-                if (pendingIsNew) store.discardUnusedCover(pending)
-                pendingIsNew = false
+                // Hanya salinan dari pemilih yang dihapus, dan hanya bila tidak dipakai.
+                newCoverFile?.let { store.discardUnusedCover(it) }
+                newCoverFile = null
                 pendingCover = null
                 coverFor = null
             },
             onConfirm = { ratio ->
                 coverFor?.let { store.setBookCover(it.id, pending, ratio) }
-                pendingIsNew = false
+                newCoverFile = null
                 pendingCover = null
                 coverFor = null
             },
