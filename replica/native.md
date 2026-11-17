@@ -299,3 +299,14 @@ badan naskah.
   semua) dan panel kerangka bab yang melompat ke heading.
 - `ReaderPages`: pratinjau berhalaman memakai `TextMeasurer` untuk memotong paragraf ke halaman
   sesuai lebar dan tinggi layar.
+
+## 2026-11-17 — Backspace teruji dan jalur "Bagikan ke Tinta" tidak lagi balapan
+
+- `LineMarkerGuardTest` (unit test JVM, 6 kasus) mengunci perilaku `protectLineMarkers`: heading di
+  awal dokumen, heading di baris kedua, butir, penghapusan tanda butir, penghapusan biasa, dan
+  bintang inline yang tidak boleh dianggap butir.
+- `TintaStore.get(context)` menyediakan satu instance per proses. Sebelumnya setiap pembuatan
+  Activity membuat store baru yang memuat ulang pustaka dari disk, sehingga rotasi layar saat
+  penulisan bisa menghasilkan instance kedua dengan data lama.
+- `captureIdea()` memanggil `persistNow()`: badan naskah dan `tinta.json` ditulis tanpa menunggu
+  debounce 400 ms, jadi teks yang dibagikan tidak hilang bila aplikasi langsung ditutup.

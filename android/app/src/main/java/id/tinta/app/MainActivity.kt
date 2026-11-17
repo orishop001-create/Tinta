@@ -22,7 +22,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        store = TintaStore(applicationContext)
+        store = TintaStore.get(applicationContext)
         if (savedInstanceState == null) captureShared(intent)
         setContent {
             val data by store.state.collectAsStateWithLifecycle()

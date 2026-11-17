@@ -25,6 +25,18 @@ import java.time.format.DateTimeFormatter
 class TintaStore(context: Context) {
     companion object {
         const val BACKUP_FILE_NAME = "tinta-cadangan.json"
+
+        @Volatile
+        private var shared: TintaStore? = null
+
+        /**
+         * Satu instance per proses. Rotasi layar tidak boleh membuat store kedua yang memuat ulang
+         * pustaka dari disk saat instance lama belum selesai menulis.
+         */
+        fun get(context: Context): TintaStore =
+            shared ?: synchronized(this) {
+                shared ?: TintaStore(context.applicationContext).also { shared = it }
+            }
     }
 
     private val appContext = context.applicationContext
@@ -118,6 +130,23 @@ class TintaStore(context: Context) {
                 }
                 saveNow(snapshot)
             }
+        }
+    }
+
+    /** Menyimpan yang tertunda tanpa menunggu debounce, dipakai jalur "Bagikan ke Tinta". */
+    private fun persistNow() {
+        saveJob?.cancel()
+        runCatching {
+            val snapshot = _state.value
+            val ids = synchronized(writeLock) {
+                dirtyBodies.toList().also { dirtyBodies.clear() }
+            }
+            ids.forEach { id ->
+                snapshot.chapters.firstOrNull { it.id == id }?.let { chapter ->
+                    chapterDb.put(chapter.id, chapter.body)
+                }
+            }
+            saveNow(snapshot)
         }
     }
 
@@ -290,6 +319,8 @@ class TintaStore(context: Context) {
         val count = _state.value.chapters.count { it.bookId == bookId && it.deletedAt == null }
         val chapterId = createChapter(bookId, null, "Tempelan ${count + 1}")
         updateChapterBody(chapterId, body.trim())
+        // Tulis langsung: aplikasi bisa ditutup sebelum debounce 400 ms selesai.
+        persistNow()
         return bookId
     }
 
