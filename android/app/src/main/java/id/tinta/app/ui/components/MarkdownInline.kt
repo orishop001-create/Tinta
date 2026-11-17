@@ -26,6 +26,9 @@ class MarkdownInlineTransformation : VisualTransformation {
         if (cachedSource == source) cached?.let { return it }
 
         val map = IntArray(source.length + 1)
+        // Kursor yang jatuh di posisi penanda baris diarahkan ke awal isi baris, supaya mengetik
+        // di situ tidak menyelipkan huruf sebelum `## ` atau `- ` yang tersembunyi.
+        val preferred = IntArray(source.length + 1) { -1 }
         val out = StringBuilder(source.length)
         val spans = mutableListOf<AnnotatedString.Range<SpanStyle>>()
         val open = ArrayDeque<Pair<String, Int>>()
@@ -43,14 +46,19 @@ class MarkdownInlineTransformation : VisualTransformation {
                     }
                     index += heading
                     map[index] = out.length
+                    preferred[out.length] = index
                     headingStart = out.length
                     continue
                 }
                 if (bulletAt(source, index)) {
+                    // Kursor di posisi butir atau spasinya diarahkan ke awal isi baris.
+                    val contentStart = (index + 2).coerceAtMost(source.length)
+                    preferred[out.length] = contentStart
                     map[index] = out.length
                     out.append('•')
                     index += 1
                     map[index] = out.length
+                    preferred[out.length] = contentStart
                     continue
                 }
             }
@@ -95,19 +103,25 @@ class MarkdownInlineTransformation : VisualTransformation {
 
         val transformed = TransformedText(
             AnnotatedString(out.toString(), spans),
-            Mapping(map, out.length),
+            Mapping(map, preferred, out.length),
         )
         cachedSource = source
         cached = transformed
         return transformed
     }
 
-    private class Mapping(private val map: IntArray, private val visibleLength: Int) : OffsetMapping {
+    private class Mapping(
+        private val map: IntArray,
+        private val preferred: IntArray,
+        private val visibleLength: Int,
+    ) : OffsetMapping {
         override fun originalToTransformed(offset: Int): Int =
             map[offset.coerceIn(0, map.size - 1)]
 
         override fun transformedToOriginal(offset: Int): Int {
             val target = offset.coerceIn(0, visibleLength)
+            val forced = preferred[target]
+            if (forced >= 0) return forced
             var low = 0
             var high = map.size - 1
             while (low < high) {

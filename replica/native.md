@@ -272,3 +272,12 @@ badan naskah.
   sebagai butir `•` (satu karakter ke satu karakter, sehingga pemetaan kursor tetap lurus).
 - Peta offset mencatat indeks asli untuk setiap karakter yang disembunyikan, jadi kursor tetap
   mendarat di posisi yang benar meski pagar heading atau tanda butir tidak terlihat.
+
+## 2026-11-17 — Kursor di awal baris berpenanda
+
+- Transformasi menyimpan tabel `preferred` per posisi tampil. Untuk heading, posisi awal baris
+  diarahkan ke awal isi (setelah `## `); untuk butir, posisi `•` dan spasinya diarahkan ke awal isi
+  (setelah `- `). Mengetik di awal baris kini menyisipkan setelah penanda, bukan sebelum penanda,
+  sehingga `## ` dan `- ` tidak rusak dan markah mentah tidak muncul kembali.
+- `transformedToOriginal` memakai nilai `preferred` bila ada, lalu jatuh ke pencarian biner seperti
+  sebelumnya untuk posisi inline, sehingga pemetaan kursor pada teks tebal/miring tidak berubah.
