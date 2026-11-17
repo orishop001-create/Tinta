@@ -171,3 +171,15 @@ debug APK and source archive on push.
 - Custom fonts: `Fonts.install()` copies a TTF/OTF into `filesDir/font` and validates it with
   `Typeface.createFromFile`; Settings → Menulis → "Impor font" activates it, and the editor + the Aa
   sheet use it through `FontFamily(Font(file))`. "Pakai bawaan" reverts to the bundled families.
+
+## 2026-11-17 — Bingkai ulang, pembersihan berkas, sampul di ekspor
+
+- Every cover menu gained a frame-only entry ("Atur bingkai …") that reopens `CoverFrameDialog`
+  with the stored image, so 2:3 / 9:16 / portrait can change without picking a file again.
+  Cancelling a frame-only dialog keeps the file; cancelling a fresh pick deletes the copy.
+- `TintaStore` drops the previous cover file whenever a cover is replaced, and removes every cover
+  (book, its sections, its chapters) when a book or section is deleted or a chapter is purged.
+  Soft-deleted chapters keep their file so Trash restore still shows the cover.
+- `Export.bookPdf` draws the book cover on the title page (max 200×280 pt, centred).
+- `Export.bookEpub` embeds `OEBPS/cover.jpg`, adds `cover.xhtml`, the `cover-image` manifest item and
+  a leading spine entry, plus the legacy `<meta name="cover">` hint.

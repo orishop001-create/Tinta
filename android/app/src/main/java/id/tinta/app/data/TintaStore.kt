@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.AtomicFile
+import id.tinta.app.util.Covers
 import id.tinta.app.util.Crypto
 import id.tinta.app.util.Text
 import kotlinx.coroutines.CoroutineScope
@@ -188,6 +189,15 @@ class TintaStore(context: Context) {
 
     fun deleteBook(id: String) {
         val chapterIds = _state.value.chapters.filter { it.bookId == id }.map { it.id }.toSet()
+        val covers = buildList {
+            _state.value.books.filter { it.id == id }.forEach { book ->
+                book.coverImage?.let(::add)
+                book.volumes.forEach { volume -> volume.coverImage?.let(::add) }
+            }
+            _state.value.chapters.filter { it.bookId == id }.forEach { chapter ->
+                chapter.coverImage?.let(::add)
+            }
+        }
         update { data ->
             data.copy(
                 books = data.books.filterNot { it.id == id },
@@ -201,6 +211,7 @@ class TintaStore(context: Context) {
             )
         }
         chapterDb.delete(chapterIds)
+        covers.forEach(::dropCover)
     }
 
     fun addVolume(bookId: String, title: String) {
@@ -217,6 +228,11 @@ class TintaStore(context: Context) {
     }
 
     fun deleteVolume(bookId: String, volumeId: String) {
+        val cover = _state.value.books
+            .firstOrNull { it.id == bookId }
+            ?.volumes
+            ?.firstOrNull { it.id == volumeId }
+            ?.coverImage
         update { data ->
             data.copy(
                 books = data.books.map {
@@ -230,6 +246,7 @@ class TintaStore(context: Context) {
                 },
             )
         }
+        dropCover(cover)
     }
 
     fun createChapter(bookId: String, volumeId: String?, title: String): String {
@@ -330,7 +347,13 @@ class TintaStore(context: Context) {
         }
     }
 
+    private fun dropCover(name: String?) {
+        if (name.isNullOrBlank()) return
+        runCatching { Covers.delete(appContext, name) }
+    }
+
     fun setBookCover(id: String, image: String?, ratio: String = "2:3") {
+        val before = _state.value.books.firstOrNull { it.id == id }?.coverImage
         val stamp = now()
         update { data ->
             data.copy(
@@ -339,9 +362,15 @@ class TintaStore(context: Context) {
                 },
             )
         }
+        if (before != image) dropCover(before)
     }
 
     fun setVolumeCover(bookId: String, volumeId: String, image: String?, ratio: String = "2:3") {
+        val before = _state.value.books
+            .firstOrNull { it.id == bookId }
+            ?.volumes
+            ?.firstOrNull { it.id == volumeId }
+            ?.coverImage
         val stamp = now()
         update { data ->
             data.copy(
@@ -363,9 +392,11 @@ class TintaStore(context: Context) {
                 },
             )
         }
+        if (before != image) dropCover(before)
     }
 
     fun setChapterCover(id: String, image: String?, ratio: String = "2:3") {
+        val before = _state.value.chapters.firstOrNull { it.id == id }?.coverImage
         val stamp = now()
         update { data ->
             data.copy(
@@ -374,6 +405,7 @@ class TintaStore(context: Context) {
                 },
             )
         }
+        if (before != image) dropCover(before)
     }
 
     fun setFontFile(name: String?) {
@@ -507,6 +539,7 @@ class TintaStore(context: Context) {
     }
 
     fun purgeChapter(id: String) {
+        val cover = _state.value.chapters.firstOrNull { it.id == id }?.coverImage
         update { data ->
             data.copy(
                 chapters = data.chapters.filterNot { it.id == id },
@@ -516,6 +549,7 @@ class TintaStore(context: Context) {
             )
         }
         chapterDb.delete(listOf(id))
+        dropCover(cover)
     }
 
     fun openChapter(id: String) {

@@ -1,7 +1,9 @@
 package id.tinta.app.util
 
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import id.tinta.app.data.Book
@@ -63,7 +65,7 @@ object Export {
         return out.toString()
     }
 
-    fun bookPdf(book: Book, chapters: List<Chapter>): ByteArray {
+    fun bookPdf(book: Book, chapters: List<Chapter>, cover: Bitmap? = null): ByteArray {
         val document = PdfDocument()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
         val maxWidth = PAGE_WIDTH - MARGIN * 2
@@ -130,6 +132,18 @@ object Export {
             }
         }
 
+        // Sampul (kalau ada) di halaman judul
+        cover?.let { bitmap ->
+            val maxW = 200f
+            val maxH = 280f
+            val scale = minOf(maxW / bitmap.width, maxH / bitmap.height)
+            val w = bitmap.width * scale
+            val h = bitmap.height * scale
+            val left = (PAGE_WIDTH - w) / 2f
+            canvas.drawBitmap(bitmap, null, RectF(left, y, left + w, y + h), paint)
+            y += h + 24f
+        }
+
         // Halaman judul + hak cipta
         y += 60f
         drawParagraph(book.title.ifBlank { "Tanpa judul" }, 24f, true, 34f)
@@ -183,7 +197,7 @@ object Export {
         return out.toByteArray()
     }
 
-    fun bookEpub(book: Book, chapters: List<Chapter>): ByteArray {
+    fun bookEpub(book: Book, chapters: List<Chapter>, cover: Bitmap? = null): ByteArray {
         val pages = mutableListOf<Pair<String, String>>()
         orderGroups(book, chapters).forEach { (volume, items) ->
             if (items.isEmpty()) return@forEach
@@ -221,6 +235,25 @@ object Export {
                 zip.putNextEntry(java.util.zip.ZipEntry(name))
                 zip.write(content.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
+            }
+
+            val coverBytes = cover?.let { bitmap ->
+                ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+                    .toByteArray()
+            }
+            if (coverBytes != null) {
+                zip.putNextEntry(java.util.zip.ZipEntry("OEBPS/cover.jpg"))
+                zip.write(coverBytes)
+                zip.closeEntry()
+                put(
+                    "OEBPS/cover.xhtml",
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"id\"><head>" +
+                        "<meta charset=\"utf-8\"/><title>${xml(book.title.ifBlank { "Sampul" })}</title>" +
+                        "</head><body style=\"margin:0;padding:0;text-align:center\">" +
+                        "<img src=\"cover.jpg\" alt=\"Sampul\" " +
+                        "style=\"max-width:100%;max-height:100%\"/></body></html>",
+                )
             }
 
             put(
@@ -269,12 +302,22 @@ object Export {
                     "<dc:identifier id=\"bookid\">urn:uuid:${book.id}</dc:identifier>" +
                     "<dc:title>${xml(book.title.ifBlank { "Tanpa judul" })}</dc:title>" +
                     "<dc:language>id</dc:language><dc:creator>Tinta</dc:creator>" +
+                    (if (cover != null) "<meta name=\"cover\" content=\"cover-image\"/>" else "") +
                     "<meta property=\"dcterms:modified\">${java.time.Instant.now()}</meta>" +
                     "</metadata><manifest>" +
                     "<item id=\"nav\" href=\"nav.xhtml\" " +
                     "media-type=\"application/xhtml+xml\" properties=\"nav\"/>" +
+                    (if (coverBytes != null) {
+                        "<item id=\"cover\" href=\"cover.xhtml\" " +
+                            "media-type=\"application/xhtml+xml\"/><item id=\"cover-image\" " +
+                            "href=\"cover.jpg\" media-type=\"image/jpeg\" properties=\"cover-image\"/>"
+                    } else {
+                        ""
+                    }) +
                     manifest +
-                    "</manifest><spine>$spine</spine></package>",
+                    "</manifest><spine>" +
+                    (if (coverBytes != null) "<itemref idref=\"cover\"/>" else "") +
+                    "$spine</spine></package>",
             )
         }
         return out.toByteArray()

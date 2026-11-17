@@ -37,6 +37,7 @@ import id.tinta.app.ui.screens.StatsScreen
 import id.tinta.app.ui.screens.TrashScreen
 import id.tinta.app.ui.theme.LocalTintaColors
 import id.tinta.app.util.Export
+import id.tinta.app.util.Covers
 import id.tinta.app.util.Text
 
 @Composable
@@ -81,7 +82,7 @@ fun TintaApp(store: TintaStore) {
         val chapters = chaptersOf(bookId)
         val name = Text.slugify(book.title)
         if (pdf) {
-            pendingExport = Export.bookPdf(book, chapters)
+            pendingExport = Export.bookPdf(book, chapters, Covers.bitmap(context, book.coverImage))
             pdfLauncher.launch("$name.pdf")
         } else {
             pendingExport = Export.bookMarkdown(book, chapters).toByteArray(Charsets.UTF_8)
@@ -91,7 +92,8 @@ fun TintaApp(store: TintaStore) {
 
     fun exportEpub(bookId: String) {
         val book = data.books.firstOrNull { it.id == bookId } ?: return
-        pendingExport = Export.bookEpub(book, chaptersOf(bookId))
+        pendingExport =
+            Export.bookEpub(book, chaptersOf(bookId), Covers.bitmap(context, book.coverImage))
         epubLauncher.launch("${Text.slugify(book.title)}.epub")
     }
 

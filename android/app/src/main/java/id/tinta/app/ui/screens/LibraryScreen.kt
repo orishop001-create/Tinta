@@ -56,6 +56,7 @@ import id.tinta.app.data.Book
 import id.tinta.app.data.TintaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.ui.platform.LocalContext
 import id.tinta.app.ui.components.BookCover
@@ -89,6 +90,7 @@ fun LibraryScreen(
     val context = LocalContext.current
     var coverFor by remember { mutableStateOf<Book?>(null) }
     var pendingCover by remember { mutableStateOf<String?>(null) }
+    var pendingIsNew by remember { mutableStateOf(false) }
     val coverLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -97,6 +99,7 @@ fun LibraryScreen(
             return@rememberLauncherForActivityResult
         }
         pendingCover = Covers.save(context, uri)
+        pendingIsNew = true
     }
 
     val lastChapter = data.settings.lastDocId?.let { id ->
@@ -174,6 +177,11 @@ fun LibraryScreen(
                             coverFor = book
                             coverLauncher.launch("image/*")
                         },
+                        onFrame = {
+                            pendingIsNew = false
+                            coverFor = book
+                            pendingCover = book.coverImage
+                        },
                         onDelete = { deleting = book },
                         onFeatures = { onFeatures(book.id) },
                     )
@@ -233,12 +241,14 @@ fun LibraryScreen(
             image = pending,
             initialRatio = coverFor?.coverRatio ?: "2:3",
             onDismiss = {
-                Covers.delete(context, pending)
+                if (pendingIsNew) Covers.delete(context, pending)
+                pendingIsNew = false
                 pendingCover = null
                 coverFor = null
             },
             onConfirm = { ratio ->
                 coverFor?.let { store.setBookCover(it.id, pending, ratio) }
+                pendingIsNew = false
                 pendingCover = null
                 coverFor = null
             },
@@ -309,6 +319,7 @@ private fun BookRow(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onCover: () -> Unit,
+    onFrame: () -> Unit,
     onDelete: () -> Unit,
     onFeatures: () -> Unit,
 ) {
@@ -363,6 +374,16 @@ private fun BookRow(
                         onEdit()
                     },
                 )
+                if (book.coverImage != null) {
+                    DropdownMenuItem(
+                        text = { Text("Atur bingkai sampul", color = colors.ink) },
+                        leadingIcon = { Icon(Icons.Default.CropFree, null, tint = colors.muted) },
+                        onClick = {
+                            menu = false
+                            onFrame()
+                        },
+                    )
+                }
                 DropdownMenuItem(
                     text = {
                         Text(

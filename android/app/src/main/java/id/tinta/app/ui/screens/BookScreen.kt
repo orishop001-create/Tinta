@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -96,6 +97,7 @@ fun BookScreen(
     var moveChapter by remember { mutableStateOf<Chapter?>(null) }
     var coverTarget by remember { mutableStateOf<CoverTarget?>(null) }
     var pendingCover by remember { mutableStateOf<String?>(null) }
+    var pendingIsNew by remember { mutableStateOf(false) }
     var volumeMenu by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val coverLauncher = rememberLauncherForActivityResult(
@@ -106,6 +108,7 @@ fun BookScreen(
             return@rememberLauncherForActivityResult
         }
         pendingCover = Covers.save(context, uri)
+        pendingIsNew = true
         if (pendingCover == null) coverTarget = null
     }
 
@@ -197,6 +200,20 @@ fun BookScreen(
                                     onExportDocx()
                                 },
                             )
+                            if (book.coverImage != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Atur bingkai sampul", color = colors.ink) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.CropFree, null, tint = colors.muted)
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        pendingIsNew = false
+                                        coverTarget = CoverTarget("book", book.id, null)
+                                        pendingCover = book.coverImage
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Ganti sampul buku", color = colors.ink) },
                                 leadingIcon = { Icon(Icons.Default.Image, null, tint = colors.muted) },
@@ -323,6 +340,30 @@ fun BookScreen(
                                             onDismissRequest = { volumeMenu = null },
                                             containerColor = colors.surface,
                                         ) {
+                                            if (volume.coverImage != null) {
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text("Atur bingkai bagian", color = colors.ink)
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            Icons.Default.CropFree,
+                                                            null,
+                                                            tint = colors.muted,
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        volumeMenu = null
+                                                        pendingIsNew = false
+                                                        coverTarget = CoverTarget(
+                                                            "volume",
+                                                            book.id,
+                                                            volume.id,
+                                                        )
+                                                        pendingCover = volume.coverImage
+                                                    },
+                                                )
+                                            }
                                             DropdownMenuItem(
                                                 text = { Text("Ganti sampul bagian", color = colors.ink) },
                                                 leadingIcon = {
@@ -363,6 +404,10 @@ fun BookScreen(
                                 onCover = {
                                     coverTarget = CoverTarget("chapter", book.id, chapter.id)
                                     coverLauncher.launch("image/*")
+                                },
+                                onFrame = {
+                                    coverTarget = CoverTarget("chapter", book.id, chapter.id)
+                                    pendingCover = chapter.coverImage
                                 },
                             )
                         }
@@ -457,7 +502,8 @@ fun BookScreen(
             image = pending,
             initialRatio = initial,
             onDismiss = {
-                Covers.delete(context, pending)
+                if (pendingIsNew) Covers.delete(context, pending)
+                pendingIsNew = false
                 pendingCover = null
                 coverTarget = null
             },
@@ -467,6 +513,7 @@ fun BookScreen(
                     "volume" -> target.id?.let { store.setVolumeCover(book.id, it, pending, ratio) }
                     else -> target.id?.let { store.setChapterCover(it, pending, ratio) }
                 }
+                pendingIsNew = false
                 pendingCover = null
                 coverTarget = null
             },
@@ -514,6 +561,7 @@ private fun ChapterRow(
     onFeatures: () -> Unit,
     onReorder: (Int) -> Unit,
     onCover: () -> Unit,
+    onFrame: () -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var menu by remember { mutableStateOf(false) }
@@ -590,6 +638,16 @@ private fun ChapterRow(
                         onMove()
                     },
                 )
+                if (chapter.coverImage != null) {
+                    DropdownMenuItem(
+                        text = { Text("Bingkai sampul bab", color = colors.ink) },
+                        leadingIcon = { Icon(Icons.Default.CropFree, null, tint = colors.muted) },
+                        onClick = {
+                            menu = false
+                            onFrame()
+                        },
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("Sampul bab", color = colors.ink) },
                     leadingIcon = { Icon(Icons.Default.Image, null, tint = colors.muted) },
