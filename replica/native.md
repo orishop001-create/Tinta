@@ -310,3 +310,16 @@ badan naskah.
   penulisan bisa menghasilkan instance kedua dengan data lama.
 - `captureIdea()` memanggil `persistNow()`: badan naskah dan `tinta.json` ditulis tanpa menunggu
   debounce 400 ms, jadi teks yang dibagikan tidak hilang bila aplikasi langsung ditutup.
+
+## 2026-11-17 — Tombol < > mengikuti urutan bagian
+
+- Akar masalah 1 → 3 → 2: `order` hanya unik **di dalam satu bagian** (bagian I memakai 0,1 dan
+  bagian II memulai lagi dari 0), sedangkan tombol < > dan daftar isi editor mengurutkan seluruh bab
+  buku dengan `order` saja. Nilai yang sama membuat urutan ditentukan oleh urutan array data —
+  bab 3 bisa muncul sebelum bab 2 walau layar buku menampilkannya sesudahnya.
+- `readingOrder(book, chapters)` menjadi satu-satunya penentu urutan baca: indeks bagian lebih dulu,
+  lalu `order`, lalu `createdAt`, lalu `id`. Bab tanpa bagian ditaruh paling akhir, sama seperti
+  tampilan buku.
+- Dipakai oleh navigasi < >, daftar isi editor, daftar bab di layar buku, dan pengurutan ulang
+  (drag), sehingga tombol, daftar isi, dan daftar di layar buku tidak bisa lagi berbeda urutan.
+- `ReadingOrderTest` (3 kasus) mengunci perilaku tersebut, termasuk bab tanpa bagian.

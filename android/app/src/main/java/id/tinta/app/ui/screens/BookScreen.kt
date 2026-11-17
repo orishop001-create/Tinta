@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.tinta.app.data.Chapter
 import id.tinta.app.data.TintaStore
+import id.tinta.app.data.readingOrder
 import id.tinta.app.ui.components.BookCover
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.CoverFrameDialog
@@ -133,10 +134,8 @@ fun BookScreen(
         return
     }
 
-    val chapters = remember(data.chapters, book.id) {
-        data.chapters
-            .filter { it.bookId == book.id && it.deletedAt == null }
-            .sortedBy { it.order }
+    val chapters = remember(data.chapters, book.volumes, book.id) {
+        readingOrder(book, data.chapters.filter { it.bookId == book.id && it.deletedAt == null })
     }
     val groups = remember(book.volumes, chapters) {
         book.volumes.map { volume ->
@@ -148,9 +147,10 @@ fun BookScreen(
     val totalWords = remember(chapters) { chapters.sumOf { Text.wordCount(it.body) } }
 
     fun reorder(chapterId: String, delta: Int) {
-        val ordered = data.chapters
-            .filter { it.bookId == book.id && it.deletedAt == null }
-            .sortedBy { it.order }
+        val ordered = readingOrder(
+            book,
+            data.chapters.filter { it.bookId == book.id && it.deletedAt == null },
+        )
         val index = ordered.indexOfFirst { it.id == chapterId }
         val target = index + delta
         if (index < 0 || target !in ordered.indices) return

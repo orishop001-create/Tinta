@@ -25,6 +25,26 @@ data class Book(
     val updatedAt: Long,
 )
 
+/**
+ * Urutan baca yang sama dengan tampilan buku: bagian sesuai urutan tampil, lalu bab di dalam
+ * bagian itu. `order` hanya unik di dalam satu bagian, jadi mengurutkan seluruh bab buku dengan
+ * `order` saja bisa menghasilkan urutan yang berbeda dari daftar yang dilihat penulis.
+ */
+fun readingOrder(book: Book?, chapters: List<Chapter>): List<Chapter> {
+    val volumeIndex = book?.volumes
+        ?.mapIndexed { index, volume -> volume.id to index }
+        ?.toMap()
+        .orEmpty()
+    return chapters.sortedWith(
+        compareBy<Chapter> { chapter ->
+            chapter.volumeId?.let { volumeIndex[it] } ?: Int.MAX_VALUE
+        }
+            .thenBy { it.order }
+            .thenBy { it.createdAt }
+            .thenBy { it.id }
+    )
+}
+
 @Serializable
 data class Chapter(
     val id: String,

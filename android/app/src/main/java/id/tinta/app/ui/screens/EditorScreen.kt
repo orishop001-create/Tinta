@@ -88,6 +88,7 @@ import androidx.compose.material3.SliderDefaults
 import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
+import id.tinta.app.data.readingOrder
 import id.tinta.app.ui.components.FindReplaceDialog
 import id.tinta.app.ui.components.MarkdownDocument
 import id.tinta.app.ui.components.MarkdownInlineTransformation
@@ -546,9 +547,10 @@ fun EditorScreen(
         },
         bottomBar = {
             if (!focusMode) {
-                val siblings = data.chapters
-                    .filter { it.bookId == chapter.bookId && it.deletedAt == null }
-                    .sortedBy { it.order }
+                val siblings = readingOrder(
+                    book,
+                    data.chapters.filter { it.bookId == chapter.bookId && it.deletedAt == null },
+                )
                 val chapterIndex = siblings.indexOfFirst { it.id == chapter.id }
                 val previousChapter = siblings.getOrNull(chapterIndex - 1)
                 val followingChapter = siblings.getOrNull(chapterIndex + 1)
@@ -813,9 +815,10 @@ fun EditorScreen(
     }
 
     if (showToc) {
-        val toc = data.chapters
-            .filter { it.bookId == chapter.bookId && it.deletedAt == null }
-            .sortedBy { it.order }
+        val toc = readingOrder(
+            book,
+            data.chapters.filter { it.bookId == chapter.bookId && it.deletedAt == null },
+        )
         AlertDialog(
             onDismissRequest = { showToc = false },
             containerColor = colors.surface,
