@@ -13,9 +13,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 
 /**
- * Menampilkan Markdown inline langsung di dalam editor. Penanda `**`, `*`, `_`, `~~`, dan `` ` ``
- * disembunyikan, isinya digambar tebal/miring/coret, jadi pengguna tidak perlu membuka pratinjau
- * hanya untuk melihat formatnya.
+ * Menampilkan Markdown langsung di dalam editor: penanda inline (`**`, `*`, `_`, `~~`, `` ` ``)
+ * maupun penanda baris (`##`, `-`, `*`, `+`) disembunyikan, isinya digambar sesuai formatnya.
+ * Tidak perlu membuka pratinjau untuk melihat hasilnya.
  */
 class MarkdownInlineTransformation : VisualTransformation {
     private var cachedSource: String? = null
@@ -30,16 +30,48 @@ class MarkdownInlineTransformation : VisualTransformation {
         val spans = mutableListOf<AnnotatedString.Range<SpanStyle>>()
         val open = ArrayDeque<Pair<String, Int>>()
         var index = 0
+        var lineStart = true
+        var headingStart = -1
 
         while (index < source.length) {
+            if (lineStart) {
+                lineStart = false
+                val heading = headingLength(source, index)
+                if (heading > 0) {
+                    for (step in 0 until heading) {
+                        if (index + step < source.length) map[index + step] = out.length
+                    }
+                    index += heading
+                    map[index] = out.length
+                    headingStart = out.length
+                    continue
+                }
+                if (bulletAt(source, index)) {
+                    map[index] = out.length
+                    out.append('•')
+                    index += 1
+                    map[index] = out.length
+                    continue
+                }
+            }
+
             val marker = markerAt(source, index)
             if (marker == null) {
+                val char = source[index]
+                if (char == '\n' && headingStart >= 0) {
+                    if (out.length > headingStart) {
+                        spans.add(AnnotatedString.Range(HeadingStyle, headingStart, out.length))
+                    }
+                    headingStart = -1
+                }
                 map[index] = out.length
-                out.append(source[index])
+                out.append(char)
                 index += 1
                 map[index] = out.length
+                if (char == '\n') lineStart = true
                 continue
             }
+
             for (step in 0 until marker.length) {
                 if (index + step < source.length) map[index + step] = out.length
             }
@@ -55,6 +87,10 @@ class MarkdownInlineTransformation : VisualTransformation {
             } else {
                 open.addLast(marker to out.length)
             }
+        }
+
+        if (headingStart >= 0 && out.length > headingStart) {
+            spans.add(AnnotatedString.Range(HeadingStyle, headingStart, out.length))
         }
 
         val transformed = TransformedText(
@@ -83,6 +119,8 @@ class MarkdownInlineTransformation : VisualTransformation {
     }
 }
 
+private val HeadingStyle = SpanStyle(fontWeight = FontWeight.Bold)
+
 private fun styleOf(marker: String): SpanStyle = when (marker) {
     "**" -> SpanStyle(fontWeight = FontWeight.Bold)
     "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
@@ -90,19 +128,51 @@ private fun styleOf(marker: String): SpanStyle = when (marker) {
     else -> SpanStyle(fontStyle = FontStyle.Italic)
 }
 
-/** Penanda hanya dianggap format kalau menempel pada kata, sehingga "* * *" tetap terlihat. */
+/** `## ` di awal baris: jumlah pagar + satu spasi yang ikut disembunyikan. */
+private fun headingLength(text: String, index: Int): Int {
+    var cursor = index
+    while (cursor < text.length && text[cursor] == '#') cursor += 1
+    val count = cursor - index
+    if (count in 1..6 && cursor < text.length && text[cursor] == ' ') return count + 1
+    return 0
+}
+
+/** `- `, `* `, `+ ` di awal baris digambar sebagai butir, bukan tanda minus. */
+private fun bulletAt(text: String, index: Int): Boolean {
+    val char = text[index]
+    if (char != '-' && char != '*' && char != '+') return false
+    return index + 1 < text.length && text[index + 1] == ' '
+}
+
+/**
+ * Penanda inline tanpa alokasi list per karakter. Penanda hanya sah bila menempel pada kata,
+ * sehingga `* * *` tetap tampil apa adanya.
+ */
 internal fun markerAt(text: String, index: Int): String? {
-    for (marker in listOf("**", "~~", "`", "*", "_")) {
-        if (!text.startsWith(marker, index)) continue
-        if (marker == "**" && text.startsWith("***", index)) continue
-        if (marker == "`") return marker
-        val next = text.getOrNull(index + marker.length)
-        val prev = text.getOrNull(index - 1)
-        val nextOk = next != null && !next.isWhitespace()
-        val prevOk = prev != null && !prev.isWhitespace()
-        if (nextOk || prevOk) return marker
+    when (text[index]) {
+        '*' -> {
+            if (index + 1 < text.length && text[index + 1] == '*') {
+                return if (attached(text, index, 2) && !text.startsWith("***", index)) "**" else null
+            }
+            return if (attached(text, index, 1)) "*" else null
+        }
+        '~' -> {
+            return if (index + 1 < text.length && text[index + 1] == '~' && attached(text, index, 2)) {
+                "~~"
+            } else {
+                null
+            }
+        }
+        '`' -> return "`"
+        '_' -> return if (attached(text, index, 1)) "_" else null
     }
     return null
+}
+
+private fun attached(text: String, index: Int, length: Int): Boolean {
+    val next = text.getOrNull(index + length)
+    val prev = text.getOrNull(index - 1)
+    return (next != null && !next.isWhitespace()) || (prev != null && !prev.isWhitespace())
 }
 
 private data class Wrap(val contentStart: Int, val contentEnd: Int, val closeEnd: Int)

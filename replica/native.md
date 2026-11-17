@@ -262,3 +262,13 @@ badan naskah.
 - `toggleInline()` memberi perilaku ala Word: B/I pada teks terpilih membungkus atau melepas format,
   B/I pada kursor kosong menyiapkan pasangan penanda sehingga ketikan berikutnya langsung tebal atau
   miring, dan menekan lagi di dalam format mengeluarkan kursor dari penanda.
+
+## 2026-11-17 — Parsing editor tanpa alokasi dan penanda baris disembunyikan
+
+- `markerAt()` tidak lagi membuat `listOf(...)` di setiap karakter; penanda dikenali lewat cabang
+  `when` atas karakter pertama, jadi naskah panjang tidak lagi menghasilkan sampah alokasi per huruf.
+- Transformasi editor kini juga menangani penanda baris: `#{1..6}` + spasi di awal baris
+  disembunyikan dan barisnya digambar tebal, sedangkan `- `, `* `, dan `+ ` di awal baris tampil
+  sebagai butir `•` (satu karakter ke satu karakter, sehingga pemetaan kursor tetap lurus).
+- Peta offset mencatat indeks asli untuk setiap karakter yang disembunyikan, jadi kursor tetap
+  mendarat di posisi yang benar meski pagar heading atau tanda butir tidak terlihat.
