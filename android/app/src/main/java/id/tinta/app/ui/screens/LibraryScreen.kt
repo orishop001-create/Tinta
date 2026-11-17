@@ -58,12 +58,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.ui.platform.LocalContext
 import id.tinta.app.ui.components.BookCover
 import id.tinta.app.ui.components.CoverFrameDialog
 import id.tinta.app.ui.components.ExportBookDialog
+import android.widget.Toast
 import id.tinta.app.util.Covers
+import id.tinta.app.util.Import
+import id.tinta.app.util.ImportedBook
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.EmptyPanel
 import id.tinta.app.ui.components.IconAction
@@ -87,6 +91,7 @@ fun LibraryScreen(
     onExportPdf: (String) -> Unit = {},
     onExportEpub: (String) -> Unit = {},
     onExportDocx: (String) -> Unit = {},
+    onImported: (ImportedBook) -> Unit = {},
 ) {
     val data by store.state.collectAsStateWithLifecycle()
     val colors = LocalTintaColors.current
@@ -110,6 +115,19 @@ fun LibraryScreen(
         val saved = Covers.save(context, uri)
         pendingCover = saved
         newCoverFile = saved
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val imported = Import.read(context, uri)
+        if (imported == null || imported.chapters.isEmpty()) {
+            Toast.makeText(context, "Berkas tidak bisa dibaca", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+        onImported(imported)
+        Toast.makeText(context, "Diimpor: ${imported.title}", Toast.LENGTH_SHORT).show()
     }
 
     val stats = remember(data.chapters) {
@@ -136,6 +154,14 @@ fun LibraryScreen(
                     IconAction(Icons.Default.Search, "Cari", onClick = onSearch)
                     IconAction(Icons.Default.BarChart, "Statistik", onClick = onStats)
                     IconAction(Icons.Default.Settings, "Setelan", onClick = onSettings)
+                    IconAction(Icons.Default.FileOpen, "Impor naskah") {
+                        importLauncher.launch(
+                            arrayOf(
+                                "text/*",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            )
+                        )
+                    }
                     IconAction(Icons.Default.Add, "Buku baru") { showCreate = true }
                 },
             )

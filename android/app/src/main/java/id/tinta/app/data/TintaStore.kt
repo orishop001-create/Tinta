@@ -273,6 +273,26 @@ class TintaStore(context: Context) {
         return id
     }
 
+    /** Membuat buku dari naskah impor: satu bab per judul yang ditemukan. */
+    fun importBook(title: String, chapters: List<Pair<String, String>>): String {
+        val bookId = createBook(title, emptyList(), 0)
+        chapters.forEach { (chapterTitle, body) ->
+            val id = createChapter(bookId, null, chapterTitle)
+            if (body.isNotBlank()) updateChapterBody(id, body)
+        }
+        return bookId
+    }
+
+    /** Menampung teks yang dibagikan dari aplikasi lain ke buku "Kotak ide". */
+    fun captureIdea(body: String): String {
+        val existing = _state.value.books.firstOrNull { it.title.equals("Kotak ide", ignoreCase = true) }
+        val bookId = existing?.id ?: createBook("Kotak ide", listOf("ide"), 0)
+        val count = _state.value.chapters.count { it.bookId == bookId && it.deletedAt == null }
+        val chapterId = createChapter(bookId, null, "Tempelan ${count + 1}")
+        updateChapterBody(chapterId, body.trim())
+        return bookId
+    }
+
     fun updateChapterTitle(id: String, title: String) {
         if (chapterOf(_state.value, id) == null) return
         val stamp = now()

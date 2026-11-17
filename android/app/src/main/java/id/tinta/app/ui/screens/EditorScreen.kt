@@ -33,9 +33,11 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Visibility
@@ -86,8 +88,13 @@ import androidx.compose.material3.SliderDefaults
 import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
+import id.tinta.app.ui.components.FindReplaceDialog
+import id.tinta.app.ui.components.MarkdownDocument
 import id.tinta.app.ui.components.MarkdownInlineTransformation
+import id.tinta.app.ui.components.OutlineDialog
 import id.tinta.app.ui.components.ReadAloudDialog
+import id.tinta.app.ui.components.ReaderPages
+import id.tinta.app.ui.components.protectLineMarkers
 import id.tinta.app.ui.components.toggleInline
 import id.tinta.app.ui.theme.TintaPalettes
 import id.tinta.app.util.Fonts
@@ -160,6 +167,12 @@ fun EditorScreen(
     var showType by remember { mutableStateOf(false) }
     var showNotes by remember { mutableStateOf(false) }
     var showRead by remember { mutableStateOf(false) }
+    var showFind by remember { mutableStateOf(false) }
+    var showOutline by remember { mutableStateOf(false) }
+    var showPages by remember { mutableStateOf(false) }
+    var findQuery by remember { mutableStateOf("") }
+    var replaceQuery by remember { mutableStateOf("") }
+    var findIndex by remember { mutableStateOf(0) }
     var noteQuote by remember { mutableStateOf<String?>(null) }
     var noteDraft by remember { mutableStateOf("") }
     var loreCard by remember { mutableStateOf<LoreEntry?>(null) }
@@ -169,7 +182,8 @@ fun EditorScreen(
     var lastEditAt by remember(chapterId) { mutableStateOf(0L) }
 
     fun applyEdit(next: TextFieldValue) {
-        if (next.text != value.text) {
+        val guarded = protectLineMarkers(value, next)
+        if (guarded.text != value.text) {
             val stamp = System.currentTimeMillis()
             if (stamp - lastEditAt > 700) {
                 undoStack.add(value.text)
@@ -178,7 +192,7 @@ fun EditorScreen(
                 lastEditAt = stamp
             }
         }
-        value = next
+        value = guarded
     }
 
     fun undo() {
@@ -194,6 +208,60 @@ fun EditorScreen(
         undoStack.add(value.text)
         value = TextFieldValue(next, TextRange(next.length))
     }
+
+    fun findAll(query: String): List<IntRange> {
+        if (query.isEmpty()) return emptyList()
+        val text = value.text
+        val hits = mutableListOf<IntRange>()
+        var from = 0
+        while (from <= text.length - query.length) {
+            val at = text.indexOf(query, from, ignoreCase = true)
+            if (at < 0) break
+            hits.add(at until at + query.length)
+            from = at + query.length
+        }
+        return hits
+    }
+
+    fun selectMatch(target: Int) {
+        val hits = findAll(findQuery)
+        if (hits.isEmpty()) return
+        val safe = ((target % hits.size) + hits.size) % hits.size
+        findIndex = safe
+        val hit = hits[safe]
+        value = value.copy(selection = TextRange(hit.first, hit.last + 1))
+    }
+
+    fun replaceCurrent() {
+        val hits = findAll(findQuery)
+        if (hits.isEmpty()) return
+        val hit = hits[findIndex.coerceIn(0, hits.size - 1)]
+        applyEdit(
+            value.copy(
+                text = value.text.replaceRange(hit.first, hit.last + 1, replaceQuery),
+                selection = TextRange(hit.first + replaceQuery.length),
+            ),
+        )
+    }
+
+    fun replaceAllMatches() {
+        if (findQuery.isEmpty()) return
+        val text = value.text
+        val out = StringBuilder(text.length)
+        var from = 0
+        while (true) {
+            val at = text.indexOf(findQuery, from, ignoreCase = true)
+            if (at < 0) {
+                out.append(text, from, text.length)
+                break
+            }
+            out.append(text, from, at).append(replaceQuery)
+            from = at + findQuery.length
+        }
+        applyEdit(value.copy(text = out.toString(), selection = TextRange(out.length)))
+    }
+
+    val findHits = remember(value.text, findQuery) { findAll(findQuery) }
 
     val latestText by rememberUpdatedState(value.text)
     val latestTitle by rememberUpdatedState(title)
@@ -316,6 +384,24 @@ fun EditorScreen(
                                     menu = false
                                     store.updateChapterBody(chapterId, value.text)
                                     onHistory()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Cari & ganti", color = colors.ink) },
+                                leadingIcon = { Icon(Icons.Default.Search, null, tint = colors.muted) },
+                                onClick = {
+                                    menu = false
+                                    showFind = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Kerangka bab", color = colors.ink) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FormatListBulleted, null, tint = colors.muted)
+                                },
+                                onClick = {
+                                    menu = false
+                                    showOutline = true
                                 },
                             )
                             DropdownMenuItem(
@@ -471,6 +557,7 @@ fun EditorScreen(
                     preview = preview,
                     onTogglePreview = { preview = !preview },
                     onPhrase = { showPhraseDialog = true },
+                    onRead = { showPages = true },
                     words = words,
                     chars = value.text.length,
                     onPrev = previousChapter?.let { sibling ->
@@ -1063,6 +1150,50 @@ fun EditorScreen(
         )
     }
 
+    if (showFind) {
+        FindReplaceDialog(
+            query = findQuery,
+            onQueryChange = {
+                findQuery = it
+                findIndex = 0
+            },
+            replacement = replaceQuery,
+            onReplacementChange = { replaceQuery = it },
+            matches = findHits.size,
+            current = findIndex + 1,
+            onPrev = { selectMatch(findIndex - 1) },
+            onNext = { selectMatch(findIndex + 1) },
+            onReplace = { replaceCurrent() },
+            onReplaceAll = { replaceAllMatches() },
+            onDismiss = { showFind = false },
+        )
+    }
+
+    if (showOutline) {
+        OutlineDialog(
+            headings = MarkdownDocument.parse(value.text).outline(),
+            onJump = { heading ->
+                value = value.copy(selection = TextRange(heading.contentStart))
+                showOutline = false
+            },
+            onDismiss = { showOutline = false },
+        )
+    }
+
+    if (showPages) {
+        ReaderPages(
+            title = title,
+            body = value.text,
+            style = TextStyle(
+                fontFamily = bodyFont,
+                fontSize = data.settings.fontSize.sp,
+                lineHeight = (data.settings.fontSize * data.settings.lineHeight).sp,
+                color = colors.ink,
+            ),
+            onClose = { showPages = false },
+        )
+    }
+
     if (showRead) {
         ReadAloudDialog(text = value.text, onDismiss = { showRead = false })
     }
@@ -1104,6 +1235,7 @@ private fun EditorBottomBar(
     preview: Boolean,
     onTogglePreview: () -> Unit,
     onPhrase: () -> Unit,
+    onRead: () -> Unit,
     words: Int,
     chars: Int,
     onPrev: (() -> Unit)? = null,
@@ -1148,6 +1280,15 @@ private fun EditorBottomBar(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(onClick = onPhrase)
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+            )
+            Text(
+                "Baca",
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onRead)
                     .padding(horizontal = 10.dp, vertical = 7.dp),
             )
             if (markdown) {

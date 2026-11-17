@@ -1,21 +1,16 @@
 package id.tinta.app.ui.components
 
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextDecoration
 
 /**
  * Menampilkan Markdown langsung di dalam editor: penanda inline (`**`, `*`, `_`, `~~`, `` ` ``)
  * maupun penanda baris (`##`, `-`, `*`, `+`) disembunyikan, isinya digambar sesuai formatnya.
- * Tidak perlu membuka pratinjau untuk melihat hasilnya.
+ * Seluruh penafsiran penanda diserahkan ke [MarkdownDocument] agar tidak ada dua parser.
  */
 class MarkdownInlineTransformation : VisualTransformation {
     private var cachedSource: String? = null
@@ -25,80 +20,39 @@ class MarkdownInlineTransformation : VisualTransformation {
         val source = text.text
         if (cachedSource == source) cached?.let { return it }
 
-        val map = IntArray(source.length + 1)
-        // Kursor yang jatuh di posisi penanda baris diarahkan ke awal isi baris, supaya mengetik
-        // di situ tidak menyelipkan huruf sebelum `## ` atau `- ` yang tersembunyi.
-        val preferred = IntArray(source.length + 1) { -1 }
+        val document = MarkdownDocument.parse(source)
         val out = StringBuilder(source.length)
-        val spans = mutableListOf<AnnotatedString.Range<SpanStyle>>()
-        val open = ArrayDeque<Pair<String, Int>>()
-        var index = 0
-        var lineStart = true
-        var headingStart = -1
+        val map = IntArray(source.length + 1)
+        var pointer = 0
 
-        while (index < source.length) {
-            if (lineStart) {
-                lineStart = false
-                val heading = headingLength(source, index)
-                if (heading > 0) {
-                    for (step in 0 until heading) {
-                        if (index + step < source.length) map[index + step] = out.length
-                    }
-                    index += heading
-                    map[index] = out.length
-                    preferred[out.length] = index
-                    headingStart = out.length
-                    continue
-                }
-                if (bulletAt(source, index)) {
-                    // Kursor di posisi butir atau spasinya diarahkan ke awal isi baris.
-                    val contentStart = (index + 2).coerceAtMost(source.length)
-                    preferred[out.length] = contentStart
-                    map[index] = out.length
-                    out.append('•')
-                    index += 1
-                    map[index] = out.length
-                    preferred[out.length] = contentStart
-                    continue
-                }
-            }
-
-            val marker = markerAt(source, index)
-            if (marker == null) {
-                val char = source[index]
-                if (char == '\n' && headingStart >= 0) {
-                    if (out.length > headingStart) {
-                        spans.add(AnnotatedString.Range(HeadingStyle, headingStart, out.length))
-                    }
-                    headingStart = -1
-                }
-                map[index] = out.length
-                out.append(char)
-                index += 1
-                map[index] = out.length
-                if (char == '\n') lineStart = true
-                continue
-            }
-
-            for (step in 0 until marker.length) {
-                if (index + step < source.length) map[index + step] = out.length
-            }
-            index += marker.length
+        for (index in source.indices) {
+            while (pointer < document.hidden.size && document.hidden[pointer].last < index) pointer += 1
             map[index] = out.length
+            val range = document.hidden.getOrNull(pointer)
+            if (range != null && index >= range.first) continue
+            if (index in document.bullets) out.append('•') else out.append(source[index])
+        }
+        map[source.length] = out.length
 
-            val top = open.lastOrNull()
-            if (top != null && top.first == marker) {
-                open.removeLast()
-                if (out.length > top.second) {
-                    spans.add(AnnotatedString.Range(styleOf(marker), top.second, out.length))
-                }
-            } else {
-                open.addLast(marker to out.length)
-            }
+        val spans = document.spans.map {
+            AnnotatedString.Range(it.item, map[it.start], map[it.end])
         }
 
-        if (headingStart >= 0 && out.length > headingStart) {
-            spans.add(AnnotatedString.Range(HeadingStyle, headingStart, out.length))
+        // Kursor yang jatuh di posisi penanda baris diarahkan ke awal isi baris, supaya mengetik
+        // dan Backspace tidak menyelipkan atau memotong penanda yang tersembunyi.
+        val preferred = IntArray(source.length + 1) { -1 }
+        document.headings.forEach { heading ->
+            val at = map[heading.contentStart]
+            if (at in preferred.indices) preferred[at] = heading.contentStart
+        }
+        document.bullets.forEach { bullet ->
+            val content = (bullet + 2).coerceAtMost(source.length)
+            val bulletAt = map[bullet]
+            if (bulletAt in preferred.indices) preferred[bulletAt] = content
+            if (bullet + 1 <= source.length) {
+                val spaceAt = map[bullet + 1]
+                if (spaceAt in preferred.indices) preferred[spaceAt] = content
+            }
         }
 
         val transformed = TransformedText(
@@ -131,62 +85,6 @@ class MarkdownInlineTransformation : VisualTransformation {
             return low
         }
     }
-}
-
-private val HeadingStyle = SpanStyle(fontWeight = FontWeight.Bold)
-
-private fun styleOf(marker: String): SpanStyle = when (marker) {
-    "**" -> SpanStyle(fontWeight = FontWeight.Bold)
-    "~~" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
-    "`" -> SpanStyle(fontFamily = FontFamily.Monospace)
-    else -> SpanStyle(fontStyle = FontStyle.Italic)
-}
-
-/** `## ` di awal baris: jumlah pagar + satu spasi yang ikut disembunyikan. */
-private fun headingLength(text: String, index: Int): Int {
-    var cursor = index
-    while (cursor < text.length && text[cursor] == '#') cursor += 1
-    val count = cursor - index
-    if (count in 1..6 && cursor < text.length && text[cursor] == ' ') return count + 1
-    return 0
-}
-
-/** `- `, `* `, `+ ` di awal baris digambar sebagai butir, bukan tanda minus. */
-private fun bulletAt(text: String, index: Int): Boolean {
-    val char = text[index]
-    if (char != '-' && char != '*' && char != '+') return false
-    return index + 1 < text.length && text[index + 1] == ' '
-}
-
-/**
- * Penanda inline tanpa alokasi list per karakter. Penanda hanya sah bila menempel pada kata,
- * sehingga `* * *` tetap tampil apa adanya.
- */
-internal fun markerAt(text: String, index: Int): String? {
-    when (text[index]) {
-        '*' -> {
-            if (index + 1 < text.length && text[index + 1] == '*') {
-                return if (attached(text, index, 2) && !text.startsWith("***", index)) "**" else null
-            }
-            return if (attached(text, index, 1)) "*" else null
-        }
-        '~' -> {
-            return if (index + 1 < text.length && text[index + 1] == '~' && attached(text, index, 2)) {
-                "~~"
-            } else {
-                null
-            }
-        }
-        '`' -> return "`"
-        '_' -> return if (attached(text, index, 1)) "_" else null
-    }
-    return null
-}
-
-private fun attached(text: String, index: Int, length: Int): Boolean {
-    val next = text.getOrNull(index + length)
-    val prev = text.getOrNull(index - 1)
-    return (next != null && !next.isWhitespace()) || (prev != null && !prev.isWhitespace())
 }
 
 private data class Wrap(val contentStart: Int, val contentEnd: Int, val closeEnd: Int)

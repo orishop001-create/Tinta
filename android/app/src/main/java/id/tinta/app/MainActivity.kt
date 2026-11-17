@@ -1,6 +1,8 @@
 package id.tinta.app
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
@@ -21,6 +23,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         store = TintaStore(applicationContext)
+        if (savedInstanceState == null) captureShared(intent)
         setContent {
             val data by store.state.collectAsStateWithLifecycle()
             var unlocked by remember { mutableStateOf(false) }
@@ -31,6 +34,24 @@ class MainActivity : FragmentActivity() {
                     TintaApp(store)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureShared(intent)
+    }
+
+    /** "Bagikan ke Tinta": teks dari aplikasi lain masuk ke buku Kotak ide. */
+    private fun captureShared(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        if (intent.type?.startsWith("text/") != true) return
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+        if (text.isBlank()) return
+        intent.removeExtra(Intent.EXTRA_TEXT)
+        runCatching { store.captureIdea(text) }.onSuccess {
+            Toast.makeText(this, "Tersimpan di Kotak ide", Toast.LENGTH_SHORT).show()
         }
     }
 

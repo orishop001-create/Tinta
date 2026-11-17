@@ -135,6 +135,13 @@ fun TintaApp(store: TintaStore) {
                     onExportPdf = { bookId -> exportBook(bookId, pdf = true) },
                     onExportEpub = { bookId -> exportEpub(bookId) },
                     onExportDocx = { bookId -> exportDocx(bookId) },
+                    onImported = { imported ->
+                        val id = store.importBook(
+                            imported.title,
+                            imported.chapters.map { it.title to it.body },
+                        )
+                        nav.navigate("book/$id")
+                    },
                 )
             }
             composable(

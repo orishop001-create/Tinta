@@ -281,3 +281,21 @@ badan naskah.
   sehingga `## ` dan `- ` tidak rusak dan markah mentah tidak muncul kembali.
 - `transformedToOriginal` memakai nilai `preferred` bila ada, lalu jatuh ke pencarian biner seperti
   sebelumnya untuk posisi inline, sehingga pemetaan kursor pada teks tebal/miring tidak berubah.
+
+## 2026-11-17 — Backspace aman, impor, cari & ganti, kerangka, dan pratinjau berhalaman
+
+- `protectLineMarkers` diperbaiki: saat Backspace menghapus spasi penanda baris, yang dibuang hanya
+  sisa pagar/butir (`heading - 1` karakter atau satu karakter butir), bukan sepanjang penanda lama.
+  Sebelumnya `## Judul` berubah menjadi `udul`.
+- `MarkdownDocument` menjadi satu-satunya parser penanda: daftar rentang tersembunyi, butir, span
+  gaya, dan heading. `MarkdownInlineTransformation`, panel kerangka, dan `ReaderPages` membacanya,
+  sehingga aturan penyembunyian tidak lagi bercabang.
+- Impor naskah dari pustaka: `Import` membaca `.md`/`.txt` (dipisah per heading) dan `.docx`
+  (`word/document.xml` tanpa pustaka tambahan), lalu `TintaStore.importBook()` membuat satu bab per
+  judul dan membuka bukunya.
+- "Bagikan ke Tinta": intent filter `ACTION_SEND` di manifest; `MainActivity` menangkap teks masuk
+  (termasuk saat aplikasi sudah berjalan) dan menyimpannya ke buku "Kotak ide".
+- Editor: dialog cari & ganti dalam bab (jumlah kecocokan, sebelumnya/berikutnya, ganti, ganti
+  semua) dan panel kerangka bab yang melompat ke heading.
+- `ReaderPages`: pratinjau berhalaman memakai `TextMeasurer` untuk memotong paragraf ke halaman
+  sesuai lebar dan tinggi layar.
