@@ -55,7 +55,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import id.tinta.app.data.Book
 import id.tinta.app.data.Chapter
 import id.tinta.app.data.TintaStore
 import id.tinta.app.ui.components.BookCover
@@ -64,7 +63,6 @@ import id.tinta.app.ui.components.CoverFrameDialog
 import id.tinta.app.ui.components.CoverThumb
 import id.tinta.app.ui.components.EmptyPanel
 import id.tinta.app.ui.components.IconAction
-import id.tinta.app.ui.components.PrimaryButton
 import id.tinta.app.ui.components.TagPill
 import id.tinta.app.ui.components.TintaTextField
 import id.tinta.app.ui.components.TintaTopBar

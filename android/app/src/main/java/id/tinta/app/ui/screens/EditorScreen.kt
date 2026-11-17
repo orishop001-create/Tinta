@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,7 +64,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -85,7 +83,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import id.tinta.app.data.Chapter
 import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
@@ -167,8 +164,6 @@ fun EditorScreen(
     val undoStack = remember(chapterId) { mutableStateListOf<String>() }
     val redoStack = remember(chapterId) { mutableStateListOf<String>() }
     var lastEditAt by remember(chapterId) { mutableStateOf(0L) }
-    val scrollState = rememberScrollState()
-    val density = LocalDensity.current
 
     fun applyEdit(next: TextFieldValue) {
         if (next.text != value.text) {
@@ -236,20 +231,6 @@ fun EditorScreen(
             sprintLeft -= 1000
         }
         if (sprintLeft <= 0) sprintRunning = false
-    }
-
-    LaunchedEffect(value.selection.end, data.settings.typewriter, scrollState.maxValue) {
-        if (!data.settings.typewriter) return@LaunchedEffect
-        val caret = value.selection.end.coerceIn(0, value.text.length)
-        val lines = value.text.take(caret).count { it == '\n' }
-        val lineHeightPx = with(density) {
-            (data.settings.fontSize * data.settings.lineHeight).dp.toPx()
-        }
-        val viewport = scrollState.viewportSize
-        if (viewport > 0) {
-            val target = (lines * lineHeightPx).toInt() - viewport / 2
-            scrollState.animateScrollTo(target.coerceIn(0, scrollState.maxValue))
-        }
     }
 
     LaunchedEffect(value.text) {

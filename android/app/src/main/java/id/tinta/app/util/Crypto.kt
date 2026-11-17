@@ -14,7 +14,6 @@ import javax.crypto.spec.SecretKeySpec
  * pernah dikirim keluar atau disimpan di aplikasi.
  */
 object Crypto {
-    const val EXTENSION = "tintaenc"
     private val magic = "TINTA1".toByteArray(Charsets.US_ASCII)
     private const val iterations = 150_000
     private const val keyBits = 256

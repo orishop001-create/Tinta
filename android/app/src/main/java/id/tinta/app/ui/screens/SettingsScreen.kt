@@ -27,10 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -60,7 +57,6 @@ import id.tinta.app.data.TintaStore
 import id.tinta.app.util.AppLock
 import id.tinta.app.util.Fonts
 import id.tinta.app.ui.components.ConfirmDialog
-import id.tinta.app.ui.components.PrimaryButton
 import id.tinta.app.ui.components.SecondaryButton
 import id.tinta.app.ui.components.TintaTextField
 import id.tinta.app.ui.components.TintaTopBar

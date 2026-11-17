@@ -2,13 +2,10 @@ package id.tinta.app.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -38,16 +35,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -326,53 +320,3 @@ fun TagPill(text: String) {
     )
 }
 
-@Composable
-fun RoundAction(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    selected: Boolean = false,
-) {
-    val colors = LocalTintaColors.current
-    Box(
-        modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(if (selected) colors.accentSoft else Color.Transparent)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = if (selected) colors.accent else colors.muted,
-            modifier = Modifier.size(19.dp),
-        )
-    }
-}
-
-@Composable
-fun Dot(color: Color, selected: Boolean = false, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(if (selected) 28.dp else 22.dp)
-            .clip(CircleShape)
-            .background(color)
-            .clickable(onClick = onClick),
-    )
-}
-
-@Composable
-fun RowLabel(title: String, trailing: String? = null) {
-    val colors = LocalTintaColors.current
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = colors.ink)
-        if (trailing != null) {
-            Text(trailing, style = MaterialTheme.typography.labelSmall, color = colors.muted)
-        }
-    }
-}

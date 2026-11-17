@@ -427,10 +427,6 @@ class TintaStore(context: Context) {
         }
     }
 
-    fun loreFor(bookId: String): List<LoreEntry> = _state.value.lore
-        .filter { it.bookId == bookId }
-        .sortedWith(compareBy({ it.kind }, { it.name.lowercase() }))
-
     fun addLore(bookId: String, kind: String, name: String, summary: String): String {
         val stamp = now()
         val id = UUID.randomUUID().toString()
@@ -468,10 +464,6 @@ class TintaStore(context: Context) {
     fun deleteLore(id: String) {
         update { data -> data.copy(lore = data.lore.filterNot { it.id == id }) }
     }
-
-    fun notesFor(chapterId: String): List<MarginNote> = _state.value.notes
-        .filter { it.chapterId == chapterId }
-        .sortedByDescending { it.createdAt }
 
     fun addNote(chapterId: String, quote: String, body: String): String? {
         val chapter = chapterOf(_state.value, chapterId) ?: return null
@@ -596,9 +588,6 @@ class TintaStore(context: Context) {
         val chapter = chapterOf(_state.value, id) ?: return
         update { data -> withSnapshot(data, chapter, "manual") }
     }
-
-    fun snapshotsFor(id: String): List<Snapshot> =
-        _state.value.snapshots.filter { it.chapterId == id }.sortedByDescending { it.createdAt }
 
     fun restoreSnapshot(snapshotId: String) {
         val data = _state.value

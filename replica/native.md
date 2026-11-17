@@ -215,3 +215,28 @@ debug APK and source archive on push.
 - Pembatalan dialog menghapus tepat satu berkas yang tercatat di `newCoverFile`, lewat
   `TintaStore.discardUnusedCover()` yang tetap menolak berkas yang masih dirujuk. Konfirmasi juga
   mengosongkan catatan itu, jadi bingkai hanya mengubah rasio tanpa menyentuh berkas mana pun.
+
+## 2026-11-17 — Bersih-bersih kode mati (−115 baris, +0)
+
+Audit otomatis: setiap `fun` dihitung kemunculannya di seluruh modul, setiap `import` dicek
+apakah simbolnya dipakai di badannya (kecuali `getValue`/`setValue`/`provideDelegate` yang
+dipakai implisit oleh `by`). Hasil yang dihapus:
+
+| Berkas | Baris | Isi |
+| --- | --- | --- |
+| `ui/components/Ui.kt` | 56 | `RoundAction`, `Dot`, `RowLabel` + 3 import mati |
+| `ui/screens/EditorScreen.kt` | 19 | `scrollState`, `density`, efek mode mesin tik yang tak lagi tersambung, 2 import |
+| `util/Text.kt` | 12 | `dayKey`, `escapeHtml` + 2 import |
+| `data/TintaStore.kt` | 11 | `loreFor`, `notesFor`, `snapshotsFor` + 2 import |
+| `ui/screens/SettingsScreen.kt` | 4 | 4 import |
+| `ui/screens/SearchScreen.kt` | 3 | 3 import |
+| `ui/components/Markdown.kt` | 2 | 2 import |
+| `ui/screens/BookScreen.kt` | 2 | 2 import |
+| `ui/screens/LoreScreen.kt` | 2 | 2 import |
+| `ui/screens/TrashScreen.kt` | 2 | 2 import |
+| `ui/screens/StatsScreen.kt` | 1 | 1 import |
+| `util/Crypto.kt` | 1 | konstanta `EXTENSION` yang tak pernah dibaca |
+
+`verticalScroll` dan `rememberScrollState` tetap dipertahankan di EditorScreen karena masih dipakai
+dialog catatan/tipografi dan bilah horizontal; yang benar-benar yatim adalah `scrollState` milik
+badan naskah.

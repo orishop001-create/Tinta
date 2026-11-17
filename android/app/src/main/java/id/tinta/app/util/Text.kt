@@ -1,8 +1,6 @@
 package id.tinta.app.util
 
 import java.text.SimpleDateFormat
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -15,10 +13,6 @@ object Text {
     }
 
     fun readingMinutes(words: Int): Int = maxOf(1, (words + 199) / 200)
-
-    fun dayKey(time: Long = System.currentTimeMillis()): String {
-        return LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-    }
 
     fun shortDate(time: Long): String =
         SimpleDateFormat("d MMM yyyy", localeId).format(Date(time))
@@ -47,10 +41,4 @@ object Text {
             .trim('-')
         return slug.ifBlank { "naskah" }
     }
-
-    fun escapeHtml(value: String): String = value
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
 }
