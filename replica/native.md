@@ -249,3 +249,16 @@ badan naskah.
   terpisah), dan menu buku di pustaka mendapat entri yang sama sehingga ekspor bisa dimulai dari rak.
 - `LibraryScreen` menerima empat callback ekspor per `bookId`, diteruskan `TintaApp` ke
   `exportBook/exportEpub/exportDocx` yang sudah ada.
+
+## 2026-11-17 — Format inline langsung terlihat di editor
+
+- `MarkdownInlineTransformation` menyembunyikan penanda `**`, `*`, `_`, `~~`, dan `` ` `` lalu
+  menggambar isinya dengan `SpanStyle` (tebal, miring, coret, monospace). Editor memakainya lewat
+  `visualTransformation`, jadi tulisan berformat terlihat tanpa menekan Pratinjau.
+- `OffsetMapping` memetakan posisi kursor antara teks asli dan teks tampil, sehingga kursor,
+  seleksi, dan penyisipan tetap berada di tempat yang benar meski penanda tak terlihat.
+- `markerAt()` tidak menganggap tanda bintang yang berdiri sendiri (`* * *`) sebagai format, dan
+  pasangan penanda kosong tidak menyisakan sampah visual.
+- `toggleInline()` memberi perilaku ala Word: B/I pada teks terpilih membungkus atau melepas format,
+  B/I pada kursor kosong menyiapkan pasangan penanda sehingga ketikan berikutnya langsung tebal atau
+  miring, dan menekan lagi di dalam format mengeluarkan kursor dari penanda.

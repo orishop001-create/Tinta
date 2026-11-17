@@ -86,7 +86,9 @@ import androidx.compose.material3.SliderDefaults
 import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
+import id.tinta.app.ui.components.MarkdownInlineTransformation
 import id.tinta.app.ui.components.ReadAloudDialog
+import id.tinta.app.ui.components.toggleInline
 import id.tinta.app.ui.theme.TintaPalettes
 import id.tinta.app.util.Fonts
 import id.tinta.app.util.Tesaurus
@@ -124,6 +126,7 @@ fun EditorScreen(
     val bodyFont = remember(data.settings.font, data.settings.fontFile) {
         editorFont(context, data.settings)
     }
+    val inlineMarkdown = remember { MarkdownInlineTransformation() }
 
     if (chapter == null) {
         Scaffold(
@@ -613,6 +616,7 @@ fun EditorScreen(
                         lineHeight = (data.settings.fontSize * data.settings.lineHeight).sp,
                         color = colors.ink,
                     ),
+                    visualTransformation = inlineMarkdown,
                     cursorBrush = SolidColor(colors.accent),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     decorationBox = { inner ->
@@ -702,7 +706,11 @@ fun EditorScreen(
                 FormatBar(
                     markdown = chapter.markdown,
                     onWrap = { before, after ->
-                        value = wrapSelection(value, before, after)
+                        value = if (before == after) {
+                            toggleInline(value, before)
+                        } else {
+                            wrapSelection(value, before, after)
+                        }
                     },
                     onInsert = { text ->
                         value = insertAtCursor(value, text)
