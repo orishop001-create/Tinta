@@ -4,6 +4,26 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Perbaikan tersendat saat menggulir layar Setelan
+
+**Perbaikan bug.** Layar Setelan sebenarnya sudah memakai `LazyColumn`; penyebab tersendat ada di
+bentuk item dan di slider.
+
+- `android/app/src/main/java/id/tinta/app/ui/screens/SettingsScreen.kt`:
+  - Kartu "Menulis" dan "Data" adalah satu item `LazyColumn` setinggi beberapa layar, sehingga
+    seluruh isinya tetap disusun dan digambar setiap frame saat digulir cepat. Kartu itu dipecah
+    menjadi item-item kecil (kebiasaan menulis, font kustom, frasa cepat, cadangan, folder, sampah)
+    agar Compose melewati bagian yang tidak terlihat.
+  - `SettingSlider` kini menyimpan nilai sementara di `remember` dan baru memanggil `onChange` saat
+    `onValueChangeFinished`. Sebelumnya setiap piksel geseran slider menulis ulang seluruh state
+    aplikasi dan menjadwalkan penyimpanan JSON, yang membuat layar tersendat.
+
+Catatan: laporan menyebut penyebabnya `Column(verticalScroll)` dan bayangan bertumpuk; keduanya
+tidak ada di kode ini. Sisa perbedaan kecepatan berasal dari build debug tanpa R8, yang tidak diubah
+pada perbaikan ini.
+
+---
+
 ## 18 November 2026 — Tata letak otomatis saat ekspor (auto arrange)
 
 **Fitur baru.** Ekspor buku dan ekspor bab kini menata naskah sendiri sebelum berkas dibuat:

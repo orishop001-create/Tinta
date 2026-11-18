@@ -354,7 +354,10 @@ fun SettingsScreen(
                             color = if (settings.typewriter) colors.accent else colors.muted,
                         )
                     }
-                    Spacer(Modifier.height(14.dp))
+                }
+            }
+            item {
+                SettingCard {
                     Text("Font kustom", style = MaterialTheme.typography.titleMedium, color = colors.ink)
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -390,7 +393,10 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                }
+            }
+            item {
+                SettingCard {
                     Text("Frasa cepat", style = MaterialTheme.typography.titleMedium, color = colors.ink)
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -569,7 +575,10 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    Spacer(Modifier.height(14.dp))
+                }
+            }
+            item {
+                SettingCard {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -617,7 +626,10 @@ fun SettingsScreen(
                                 .padding(vertical = 8.dp),
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            item {
+                SettingCard {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -819,13 +831,19 @@ private fun SettingSlider(
     onChange: (Float) -> Unit,
 ) {
     val colors = LocalTintaColors.current
+    // Nilai sementara selama jari menggeser: state aplikasi baru ditulis sekali saat jari lepas,
+    // supaya tidak ada JSON yang disusun ulang puluhan kali per detik.
+    var draft by remember(valueFloat) { mutableStateOf(valueFloat) }
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = colors.ink, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.labelSmall, color = colors.accent)
     }
     Slider(
-        value = valueFloat.coerceIn(range),
-        onValueChange = onChange,
+        value = draft.coerceIn(range),
+        onValueChange = { draft = it },
+        onValueChangeFinished = {
+            if (draft != valueFloat) onChange(draft)
+        },
         valueRange = range,
         colors = SliderDefaults.colors(
             thumbColor = colors.accent,
