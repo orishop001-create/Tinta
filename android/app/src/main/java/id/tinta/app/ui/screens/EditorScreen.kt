@@ -95,12 +95,14 @@ import id.tinta.app.ui.components.MarkdownDocument
 import id.tinta.app.ui.components.MarkdownInlineTransformation
 import id.tinta.app.ui.components.OutlineDialog
 import id.tinta.app.ui.components.ReadAloudDialog
+import id.tinta.app.ui.components.SpellcheckSheet
 import id.tinta.app.ui.components.ReaderPages
 import id.tinta.app.ui.components.protectLineMarkers
 import id.tinta.app.ui.components.toggleInline
 import id.tinta.app.ui.theme.TintaPalettes
 import id.tinta.app.util.Export
 import id.tinta.app.util.Fonts
+import id.tinta.app.util.Spellcheck
 import id.tinta.app.util.Tesaurus
 import id.tinta.app.ui.components.ConfirmDialog
 import id.tinta.app.ui.components.IconAction
@@ -165,6 +167,7 @@ fun EditorScreen(
     var showPhraseDialog by remember { mutableStateOf(false) }
     var exportBody by remember { mutableStateOf("") }
     var showExport by remember { mutableStateOf(false) }
+    var showSpell by remember { mutableStateOf(false) }
     var pendingChapterExport by remember { mutableStateOf<ByteArray?>(null) }
     var showToc by remember { mutableStateOf(false) }
     var sprintLeft by remember { mutableStateOf(0L) }
@@ -372,6 +375,14 @@ fun EditorScreen(
         chapterDocxLauncher.launch("${Text.slugify(title)}.docx")
     }
 
+    val spellIssues = remember(value.text, data.lore, data.settings.dictionary, showSpell) {
+        if (!showSpell) emptyList() else Spellcheck.check(
+            text = value.text,
+            names = data.lore.filter { it.bookId == chapter.bookId }.map { it.name },
+            dictionary = data.settings.dictionary,
+        )
+    }
+
     val words = Text.wordCount(value.text)
     val saved = value.text == chapter.body
     val selStart = min(value.selection.start, value.selection.end).coerceIn(0, value.text.length)
@@ -552,6 +563,15 @@ fun EditorScreen(
                                 onClick = {
                                     menu = false
                                     showRead = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Periksa ejaan", color = colors.ink) },
+                                leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.muted) },
+                                onClick = {
+                                    menu = false
+                                    store.updateChapterBody(chapterId, value.text)
+                                    showSpell = true
                                 },
                             )
                             DropdownMenuItem(
@@ -1239,6 +1259,18 @@ fun EditorScreen(
 
     if (showRead) {
         ReadAloudDialog(text = value.text, onDismiss = { showRead = false })
+    }
+
+    if (showSpell) {
+        SpellcheckSheet(
+            text = value.text,
+            issues = spellIssues,
+            onJump = { issue ->
+                value = value.copy(selection = TextRange(issue.start, issue.end))
+                showSpell = false
+            },
+            onDismiss = { showSpell = false },
+        )
     }
 
     if (showExport) {

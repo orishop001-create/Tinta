@@ -516,6 +516,20 @@ class TintaStore(context: Context) {
         update { data -> data.copy(lore = data.lore.filterNot { it.id == id }) }
     }
 
+    /**
+     * Ganti nama tokoh/istilah di seluruh bab buku ini, lalu perbarui kartu Story Bible-nya.
+     * Pencocokan memakai batas kata agar "Ani" tidak ikut mengubah "Anita".
+     */
+    fun renameLore(id: String, newName: String): Int {
+        val entry = _state.value.lore.firstOrNull { it.id == id } ?: return -1
+        val name = newName.trim()
+        if (name.isBlank() || name == entry.name) return 0
+        val pattern = "(?<!\\p{L})" + Regex.escape(entry.name) + "(?!\\p{L})"
+        val count = replaceAll(pattern, name, regex = true, caseSensitive = false, bookId = entry.bookId)
+        if (count >= 0) updateLore(id, entry.kind, name, entry.summary)
+        return count
+    }
+
     fun addNote(chapterId: String, quote: String, body: String): String? {
         val chapter = chapterOf(_state.value, chapterId) ?: return null
         if (body.isBlank()) return null

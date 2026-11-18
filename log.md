@@ -4,6 +4,28 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Ganti nama tokoh dari Story Bible & pemeriksa ejaan
+
+**Fitur baru.**
+
+- `android/app/src/main/java/id/tinta/app/data/TintaStore.kt`: `renameLore()` mengganti nama
+  kartu Story Bible di seluruh bab buku itu dengan batas kata (`Ani` tidak mengubah `Anita`),
+  memakai `replaceAll()` yang sudah menyimpan snapshot "sebelum-ganti", lalu memperbarui namanya.
+- `android/app/src/main/java/id/tinta/app/ui/screens/LoreScreen.kt`: tombol "Ganti juga di seluruh
+  naskah" di dialog kartu, dengan konfirmasi dan laporan jumlah kemunculan yang diganti.
+- `android/app/src/main/java/id/tinta/app/util/Spellcheck.kt` (baru): pemeriksa ejaan offline tanpa
+  kamus eksternal — kata baku (praktek, analisa, jaman, dll.), kata depan yang menempel (disini,
+  diatas, dimana), spasi ganda, spasi sebelum tanda baca, tanda baca berulang, dan nama tokoh dari
+  Story Bible (ejaan salah besar-kecil maupun jarak edit satu).
+- `android/app/src/main/java/id/tinta/app/ui/components/SpellcheckSheet.kt` (baru): daftar temuan
+  dengan cuplikan kalimat; menekan satu temuan memindahkan kursor ke kata itu.
+- `android/app/src/main/java/id/tinta/app/ui/screens/EditorScreen.kt`: menu ⋮ "Periksa ejaan".
+- `Models.kt`: `Settings.spellcheck` dan `Settings.dictionary` disiapkan.
+
+Belum ada di versi ini: garis bawah langsung di dalam editor dan layar pengaturan kamus pribadi.
+
+---
+
 ## 18 November 2026 — Perbaikan tersendat saat menggulir layar Setelan
 
 **Perbaikan bug.** Layar Setelan sebenarnya sudah memakai `LazyColumn`; penyebab tersendat ada di

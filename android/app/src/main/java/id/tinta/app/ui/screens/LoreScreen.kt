@@ -1,5 +1,6 @@
 package id.tinta.app.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,6 +62,8 @@ fun LoreScreen(
     var editing by remember { mutableStateOf<LoreEntry?>(null) }
     var creating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<LoreEntry?>(null) }
+    var renameRequest by remember { mutableStateOf<Pair<LoreEntry, String>?>(null) }
+    val context = LocalContext.current
 
     val entries = data.lore
         .filter { it.bookId == bookId && (filter == null || it.kind == filter) }
@@ -181,6 +185,38 @@ fun LoreScreen(
                 creating = false
                 editing = null
             },
+            onRename = { newName ->
+                val current = editing
+                if (current != null && newName.isNotBlank() && newName != current.name) {
+                    renameRequest = current to newName
+                    creating = false
+                    editing = null
+                }
+            },
+        )
+    }
+
+    renameRequest?.let { (entry, newName) ->
+        ConfirmDialog(
+            title = "Ganti “${entry.name}” menjadi “$newName”?",
+            message = "Semua kemunculan nama itu di bab-bab buku ini akan diganti. Versi sebelum " +
+                "penggantian disimpan ke riwayat tiap naskah yang berubah.",
+            confirmLabel = "Ganti nama",
+            destructive = true,
+            onDismiss = { renameRequest = null },
+            onConfirm = {
+                val changed = store.renameLore(entry.id, newName)
+                renameRequest = null
+                Toast.makeText(
+                    context,
+                    when {
+                        changed < 0 -> "Nama lama tidak bisa diproses."
+                        changed == 0 -> "Tidak ada kemunculan nama itu di naskah."
+                        else -> "$changed kemunculan diganti."
+                    },
+                    Toast.LENGTH_SHORT,
+                ).show()
+            },
         )
     }
 
@@ -219,6 +255,7 @@ private fun LoreEditorDialog(
     initial: LoreEntry?,
     onDismiss: () -> Unit,
     onSubmit: (String, String, String) -> Unit,
+    onRename: (String) -> Unit,
 ) {
     val colors = LocalTintaColors.current
     var kind by remember(initial?.id) { mutableStateOf(initial?.kind ?: LoreEntry.KIND_CHARACTER) }
@@ -258,6 +295,22 @@ private fun LoreEditorDialog(
                     minLines = 4,
                     placeholder = "Ciri fisik, sifat, atau peran di cerita",
                 )
+                if (initial != null) {
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(
+                        onClick = { onRename(name.trim()) },
+                        enabled = name.isNotBlank() && name.trim() != initial.name,
+                    ) {
+                        Text(
+                            "Ganti juga di seluruh naskah",
+                            color = if (name.isNotBlank() && name.trim() != initial.name) {
+                                colors.accent
+                            } else {
+                                colors.muted
+                            },
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

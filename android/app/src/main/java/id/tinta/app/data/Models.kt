@@ -53,6 +53,9 @@ data class Chapter(
     val title: String,
     val body: String = "",
     val markdown: Boolean = true,
+    /** ide, draf, revisi, atau selesai; dipakai papan cerita. */
+    val status: String = "draf",
+    val synopsis: String = "",
     val order: Int = 0,
     val createdAt: Long,
     val updatedAt: Long,
@@ -128,6 +131,9 @@ data class Settings(
     val lock: Boolean = false,
     val backupFolder: String? = null,
     val fontFile: String? = null,
+    val exportStyle: String = "buku",
+    val spellcheck: Boolean = true,
+    val dictionary: List<String> = emptyList(),
 )
 
 @Serializable
