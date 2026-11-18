@@ -15,9 +15,46 @@ data class PrintFormat(
     val marginBottom: Float = 78f,
     val marginLeft: Float = 72f,
     val marginRight: Float = 72f,
+    val bodySize: Float = 11f,
+    val lineFactor: Float = 1.55f,
+    val firstLineIndent: Float = 17f,
+    val folioTopRight: Boolean = false,
 ) {
     val textWidth: Float get() = pageWidth - marginLeft - marginRight
     val textBottom: Float get() = pageHeight - marginBottom
+    val bodyLeading: Float get() = bodySize * lineFactor
+}
+
+/** Gaya tata letak yang bisa dipilih saat mengekspor. */
+enum class PrintPreset(val key: String, val label: String, val detail: String) {
+    BUKU(
+        key = "buku",
+        label = "Buku siap cetak",
+        detail = "A4, serif 11 pt, rata kanan-kiri, daftar isi",
+    ),
+    NASKAH(
+        key = "naskah",
+        label = "Naskah kirim penerbit",
+        detail = "A4, 12 pt, spasi ganda, nomor halaman kanan atas",
+    );
+
+    fun format(): PrintFormat = when (this) {
+        BUKU -> PrintFormat()
+        NASKAH -> PrintFormat(
+            marginTop = 72f,
+            marginBottom = 72f,
+            marginLeft = 72f,
+            marginRight = 72f,
+            bodySize = 12f,
+            lineFactor = 2f,
+            firstLineIndent = 24f,
+            folioTopRight = true,
+        )
+    }
+
+    companion object {
+        fun of(key: String?): PrintPreset = entries.firstOrNull { it.key == key } ?: BUKU
+    }
 }
 
 data class TypesetLine(
@@ -64,18 +101,25 @@ class Typesetter(
     ): List<TypesetPage> {
         val heading = title.ifBlank { "Tanpa judul" }
         val entries = if (toc) tocEntries(sections) else emptyList()
-        val flow = BodyFlow(heading, entries.size)
+        // Nomor daftar isi disimpan per indeks bagian, bukan per baris daftar isi: satu bagian
+        // bisa menghasilkan dua baris (judul bagian dan judul bab), sehingga kedua indeks tidak
+        // lagi sama dan nomor halaman akan bergeser.
+        val flow = BodyFlow(heading, sections.size)
         sections.forEachIndexed { index, section ->
             flow.beginChapter()
-            entries.forEachIndexed { entryIndex, entry ->
-                if (entry.sectionIndex == index) flow.record(entryIndex)
-            }
+            flow.record(index)
             if (section.startsVolume) {
                 section.volume?.takeIf { it.isNotBlank() }?.let {
                     flow.heading(it, size = 20f, before = 0f, after = 18f, leading = 30f)
                 }
             }
-            flow.heading(section.title.ifBlank { "Tanpa judul" }, size = 17f, before = 0f, after = 14f, leading = 26f)
+            flow.heading(
+                section.title.ifBlank { "Tanpa judul" },
+                size = 17f,
+                before = 0f,
+                after = 14f,
+                leading = 26f,
+            )
             flow.body(section.body)
         }
         val pages = mutableListOf<TypesetPage>()
@@ -142,7 +186,7 @@ class Typesetter(
 
         fun flush() {
             if (lines.isEmpty()) return
-            pages += TypesetPage(lines, folio = null, runningTitle = runTitle)
+            pages += TypesetPage(lines, folio = null, runningTitle = RUN_TITLE)
             lines = mutableListOf()
             y = format.marginTop
         }
@@ -181,6 +225,7 @@ class Typesetter(
         private val runningTitle = title.uppercase()
         private val pages = mutableListOf<TypesetPage>()
         private val lines = mutableListOf<TypesetLine>()
+        /** Nomor halaman awal tiap bagian, dibaca daftar isi lewat indeks bagian. */
         val folios = IntArray(tocCount)
         private var pageNo = 0
         private var y = format.marginTop
@@ -212,7 +257,7 @@ class Typesetter(
         }
 
         fun heading(text: String, size: Float, before: Float, after: Float, leading: Float) {
-            val needed = before + leading + BODY_LEADING * 2f
+            val needed = before + leading + format.bodyLeading * 2f
             if (lines.isNotEmpty() && y + needed > format.textBottom) breakPage()
             space(before)
             val words = text.split(" ").filter { it.isNotBlank() }
@@ -232,7 +277,10 @@ class Typesetter(
                 val content = buffer.toString().trim()
                 buffer.setLength(0)
                 if (content.isEmpty()) return
-                paragraph(content, firstIndent = if (firstParagraph) 0f else FIRST_LINE_INDENT)
+                paragraph(
+                    content,
+                    firstIndent = if (firstParagraph) 0f else format.firstLineIndent,
+                )
                 firstParagraph = false
             }
 
@@ -273,26 +321,31 @@ class Typesetter(
             flushParagraph()
         }
 
-        private fun paragraph(text: String, firstIndent: Float = FIRST_LINE_INDENT, restIndent: Float = 0f) {
+        private fun paragraph(
+            text: String,
+            firstIndent: Float = format.firstLineIndent,
+            restIndent: Float = 0f,
+        ) {
             val words = text.split(" ").filter { it.isNotBlank() }
             if (words.isEmpty()) return
-            val wrapped = wrapWords(words, BODY_SIZE, false, firstIndent, restIndent)
+            val leading = format.bodyLeading
+            val wrapped = wrapWords(words, format.bodySize, false, firstIndent, restIndent)
             wrapped.forEachIndexed { index, lineWords ->
                 val last = index == wrapped.lastIndex
-                if (lines.isNotEmpty() && y + BODY_LEADING > format.textBottom) breakPage()
+                if (lines.isNotEmpty() && y + leading > format.textBottom) breakPage()
                 // Jangan tinggalkan satu baris sendirian di puncak halaman berikutnya.
-                if (lines.isNotEmpty() && wrapped.size > 1 && y + BODY_LEADING * 2 > format.textBottom) {
+                if (lines.isNotEmpty() && wrapped.size > 1 && y + leading * 2 > format.textBottom) {
                     if (index + 2 >= wrapped.size) breakPage()
                 }
                 val x = format.marginLeft + if (index == 0) firstIndent else restIndent
                 lines += TypesetLine(
                     words = lineWords,
                     x = x,
-                    baseline = y + BODY_SIZE,
-                    size = BODY_SIZE,
+                    baseline = y + format.bodySize,
+                    size = format.bodySize,
                     justify = !last && lineWords.size > 1,
                 )
-                y += BODY_LEADING
+                y += leading
             }
         }
 
@@ -365,10 +418,7 @@ class Typesetter(
     }
 
     private companion object {
-        const val BODY_SIZE = 11f
-        const val BODY_LEADING = 17f
-        const val FIRST_LINE_INDENT = 17f
-        val runTitle = "DAFTAR ISI"
+        const val RUN_TITLE = "DAFTAR ISI"
     }
 }
 

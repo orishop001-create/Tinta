@@ -4,6 +4,26 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Nomor daftar isi PDF tidak konsisten
+
+**Bug.** Pada ekspor PDF, semua angka daftar isi bergeser: "Bagian I", "Bab 1", dan "Bab 2"
+sama-sama tertulis halaman 1, lalu "Bagian II" dan "Bab 3" sama-sama halaman 2, padahal isi
+sebenarnya ada di halaman 1, 2, dan 3.
+
+**Penyebab.** `Typesetter` menyimpan nomor halaman awal bagian di larik `folios`, tetapi mengisinya
+memakai **indeks baris daftar isi** (`entries`), sementara `tocPages()` membacanya memakai **indeks
+bagian** (`entry.sectionIndex`). Karena judul bagian menambah baris tanpa menambah bagian, kedua
+indeks bergeser satu per bagian sehingga seluruh nomor salah baca.
+
+**Perbaikan.** Larik diisi per indeks bagian: `BodyFlow(heading, sections.size)` dan
+`flow.record(index)` dipanggil sekali per bagian, setelah `beginChapter()`. Judul bagian kini
+otomatis berbagi halaman dengan bab pertamanya.
+
+**Test regresi.** `TocNumberingTest` — membangun buku dua bagian tiga bab, lalu membandingkan tiap
+nomor daftar isi dengan halaman awal judul bab yang sebenarnya.
+
+---
+
 ## 18 November 2026 — Pratinjau markdown per blok dan model data immutable
 
 **Kelancaran menggulir.**
