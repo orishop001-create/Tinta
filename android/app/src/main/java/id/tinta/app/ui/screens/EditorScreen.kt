@@ -89,6 +89,7 @@ import id.tinta.app.data.LoreEntry
 import id.tinta.app.data.Settings
 import id.tinta.app.data.TintaStore
 import id.tinta.app.data.readingOrder
+import id.tinta.app.ui.components.ExportBookDialog
 import id.tinta.app.ui.components.FindReplaceDialog
 import id.tinta.app.ui.components.MarkdownDocument
 import id.tinta.app.ui.components.MarkdownInlineTransformation
@@ -98,6 +99,7 @@ import id.tinta.app.ui.components.ReaderPages
 import id.tinta.app.ui.components.protectLineMarkers
 import id.tinta.app.ui.components.toggleInline
 import id.tinta.app.ui.theme.TintaPalettes
+import id.tinta.app.util.Export
 import id.tinta.app.util.Fonts
 import id.tinta.app.util.Tesaurus
 import id.tinta.app.ui.components.ConfirmDialog
@@ -162,6 +164,8 @@ fun EditorScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var showPhraseDialog by remember { mutableStateOf(false) }
     var exportBody by remember { mutableStateOf("") }
+    var showExport by remember { mutableStateOf(false) }
+    var pendingChapterExport by remember { mutableStateOf<ByteArray?>(null) }
     var showToc by remember { mutableStateOf(false) }
     var sprintLeft by remember { mutableStateOf(0L) }
     var sprintRunning by remember { mutableStateOf(false) }
@@ -328,6 +332,44 @@ fun EditorScreen(
                 Toast.makeText(context, "Gagal menyimpan berkas.", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    fun writeChapterExport(uri: android.net.Uri?) {
+        val bytes = pendingChapterExport ?: return
+        pendingChapterExport = null
+        if (uri == null) return
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+        }.onFailure {
+            Toast.makeText(context, "Gagal menyimpan berkas.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val chapterPdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri -> writeChapterExport(uri) }
+    val chapterEpubLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/epub+zip")
+    ) { uri -> writeChapterExport(uri) }
+    val chapterDocxLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    ) { uri -> writeChapterExport(uri) }
+
+    fun exportChapterPdf() {
+        pendingChapterExport = Export.chapterPdf(chapter.copy(title = title, body = value.text))
+        chapterPdfLauncher.launch("${Text.slugify(title)}.pdf")
+    }
+
+    fun exportChapterEpub() {
+        pendingChapterExport = book?.let { Export.chapterEpub(it, chapter.copy(title = title, body = value.text)) }
+        chapterEpubLauncher.launch("${Text.slugify(title)}.epub")
+    }
+
+    fun exportChapterDocx() {
+        pendingChapterExport = Export.chapterDocx(chapter.copy(title = title, body = value.text))
+        chapterDocxLauncher.launch("${Text.slugify(title)}.docx")
     }
 
     val words = Text.wordCount(value.text)
@@ -521,15 +563,13 @@ fun EditorScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Ekspor Markdown", color = colors.ink) },
+                                text = { Text("Ekspor bab", color = colors.ink) },
                                 leadingIcon = { Icon(Icons.Default.Check, null, tint = colors.muted) },
                                 onClick = {
                                     menu = false
-                                    exportBody = buildString {
-                                        append("# ").append(title.ifBlank { "Tanpa judul" }).append("\n\n")
-                                        append(value.text)
-                                    }
-                                    exportLauncher.launch("${Text.slugify(title)}.md")
+                                    store.updateChapterBody(chapterId, value.text)
+                                    store.updateChapterTitle(chapterId, title)
+                                    showExport = true
                                 },
                             )
                             DropdownMenuItem(
@@ -1199,6 +1239,24 @@ fun EditorScreen(
 
     if (showRead) {
         ReadAloudDialog(text = value.text, onDismiss = { showRead = false })
+    }
+
+    if (showExport) {
+        ExportBookDialog(
+            title = title,
+            heading = "Ekspor bab",
+            onDismiss = { showExport = false },
+            onMarkdown = {
+                exportBody = buildString {
+                    append("# ").append(title.ifBlank { "Tanpa judul" }).append("\n\n")
+                    append(value.text)
+                }
+                exportLauncher.launch("${Text.slugify(title)}.md")
+            },
+            onPdf = { exportChapterPdf() },
+            onEpub = { exportChapterEpub() },
+            onDocx = { exportChapterDocx() },
+        )
     }
 }
 

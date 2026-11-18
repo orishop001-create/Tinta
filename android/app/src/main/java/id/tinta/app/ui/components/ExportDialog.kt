@@ -24,6 +24,7 @@ import id.tinta.app.ui.theme.LocalTintaColors
 @Composable
 fun ExportBookDialog(
     title: String,
+    heading: String = "Ekspor buku",
     onDismiss: () -> Unit,
     onMarkdown: () -> Unit,
     onPdf: () -> Unit,
@@ -35,7 +36,7 @@ fun ExportBookDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
         titleContentColor = colors.ink,
-        title = { Text("Ekspor buku", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(heading, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
                 Text(
@@ -55,7 +56,7 @@ fun ExportBookDialog(
                 )
                 ExportOption(
                     label = "PDF (.pdf)",
-                    detail = "Siap cetak: sampul, margin, dan nomor halaman",
+                    detail = "Siap cetak: margin buku, rata kanan-kiri, nomor halaman, daftar isi",
                     onClick = {
                         onDismiss()
                         onPdf()
@@ -63,7 +64,7 @@ fun ExportBookDialog(
                 )
                 ExportOption(
                     label = "EPUB (.epub)",
-                    detail = "Untuk pembaca e-book, lengkap dengan sampul dan daftar isi",
+                    detail = "Untuk pembaca e-book, dengan tipografi dan daftar isi",
                     onClick = {
                         onDismiss()
                         onEpub()
@@ -71,7 +72,7 @@ fun ExportBookDialog(
                 )
                 ExportOption(
                     label = "DOCX (.docx)",
-                    detail = "Untuk Word atau Google Docs",
+                    detail = "Untuk Word atau Google Docs, sudah berhalaman dan bernomor",
                     onClick = {
                         onDismiss()
                         onDocx()
