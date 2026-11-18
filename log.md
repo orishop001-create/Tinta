@@ -4,6 +4,39 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Audit bug: penggantian teks, impor EPUB/DOCX
+
+**Audit** mencakup store, penggantian teks lintas naskah, impor DOCX/EPUB, pemindai pola rawan
+(`!!`, `first()`, `substring`, `coerceIn`) di seluruh UI, serta penomoran tata letak cetak.
+
+### Diperbaiki
+
+- **`TintaStore.replaceAll` — teks ganti regex tidak di-escape.** `pattern.replace(body, replacement)`
+  membaca `$` dan `\` di teks ganti sebagai rujukan grup, sehingga mengganti dengan teks seperti
+  "Harga $5" melempar `IllegalArgumentException`/`IndexOutOfBoundsException` atau merusak hasil.
+  Kini teks ganti literal di-escape dengan `Regex.escapeReplacement`; perilaku `$1` hanya berlaku
+  bila pengguna memang menyalakan mode regex (`replacementIsPattern = regexMode` dari layar Cari).
+- **`Import.fromEpub` — judul bab tercetak dua kali.** Elemen `<h1>/<h2>` dipakai sebagai judul bab
+  tetapi ikut masuk ke badan naskah karena seluruh XHTML diproses. Elemen judul itu kini dibuang
+  dari sumber isi sebelum dipecah per paragraf.
+- `Import.fromDocx` dan `Import.fromText` diverifikasi lewat test baru; perilaku pemisahan bab per
+  `Heading1`/`Title` dan per `##` sudah benar.
+
+### Test baru
+
+`ImportTest` (3 test): Markdown (judul buku + bab level dua), EPUB (mengikuti spine, judul tidak
+terduplikasi di isi), DOCX (style `Title`/`Heading1` sebagai batas bab).
+
+### Ditemukan, belum diubah (bukan bug yang bisa diverifikasi tanpa perangkat)
+
+- `SearchScreen` menghitung ulang `Regex.findAll` atas seluruh naskah pada tiap ketikan tanpa
+  debounce; pada pustaka besar ini bisa terasa berat. Perbaikannya perlu pengukuran.
+- `updateChapterBody` hanya menambah statistik harian (`coerceAtLeast(0)`), jadi menghapus lalu
+  mengetik ulang kata yang sama menambah hitungan dua kali. Ini perilaku lama yang disengaja agar
+  angka target tidak mundur, bukan regresi.
+
+---
+
 ## 18 November 2026 — Nomor daftar isi PDF tidak konsisten
 
 **Bug.** Pada ekspor PDF, semua angka daftar isi bergeser: "Bagian I", "Bab 1", dan "Bab 2"

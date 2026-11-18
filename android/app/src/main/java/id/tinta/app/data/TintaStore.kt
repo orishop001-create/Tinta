@@ -674,6 +674,8 @@ class TintaStore(context: Context) {
         regex: Boolean,
         caseSensitive: Boolean,
         bookId: String?,
+        /** Hanya aktif untuk mode regex: teks ganti boleh memakai `$1` sebagai rujukan grup. */
+        replacementIsPattern: Boolean = false,
     ): Int {
         if (query.isEmpty()) return 0
         val pattern = try {
@@ -683,6 +685,9 @@ class TintaStore(context: Context) {
             return -1
         }
         var count = 0
+        // `$` dan `\` pada teks ganti literal harus di-escape; kalau tidak, nama seperti
+        // "Harga $5" akan dibaca sebagai rujukan grup dan penggantian gagal atau rusak.
+        val safeReplacement = if (replacementIsPattern) replacement else Regex.escapeReplacement(replacement)
         update { data ->
             val changed = mutableListOf<Chapter>()
             val kept = data.chapters.map { chapter ->
@@ -691,7 +696,7 @@ class TintaStore(context: Context) {
                 if (matches == 0) return@map chapter
                 count += matches
                 val updated = chapter.copy(
-                    body = pattern.replace(chapter.body, replacement),
+                    body = pattern.replace(chapter.body, safeReplacement),
                     updatedAt = now(),
                 )
                 changed += chapter

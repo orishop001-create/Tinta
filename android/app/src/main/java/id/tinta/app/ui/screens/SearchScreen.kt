@@ -267,6 +267,7 @@ fun SearchScreen(
                     regex = regexMode,
                     caseSensitive = caseSensitive,
                     bookId = bookFilter,
+                    replacementIsPattern = regexMode,
                 )
                 if (changed < 0) {
                     Toast.makeText(context, "Pola regex tidak valid.", Toast.LENGTH_SHORT).show()
