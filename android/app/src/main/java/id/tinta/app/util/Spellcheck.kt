@@ -111,7 +111,7 @@ object Spellcheck {
 
             if (token.length >= 4 && token.firstOrNull()?.isUpperCase() == true) {
                 val near = knownNames.firstOrNull { name ->
-                    name.length >= 4 &&
+                    name.length >= 4 && name.isNotEmpty() &&
                         name.first().lowercase() == token.first().lowercase() &&
                         editDistance(token.lowercase(), name.lowercase()) == 1
                 }

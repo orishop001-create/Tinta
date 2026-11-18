@@ -55,6 +55,8 @@ fun TintaApp(store: TintaStore) {
         if (uri == null) return
         runCatching {
             context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+        }.onFailure {
+            android.widget.Toast.makeText(context, "Gagal menyimpan berkas.", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

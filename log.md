@@ -4,6 +4,30 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Build release ber-R8 dan perbaikan bug hasil audit
+
+**Build release.** `android/app/build.gradle.kts`: `isMinifyEnabled = true`, `isShrinkResources = true`,
+`isDebuggable = false`. `proguard-rules.pro`: aturan keep untuk `$$serializer`/`Companion`
+kotlinx.serialization dan `androidx.biometric`. `:app:assembleRelease` berhasil lewat
+`:app:minifyReleaseWithR8`, APK 2,2 MB di `app/build/outputs/apk/release/`, ditandatangani kunci debug
+karena `keystore.properties` tidak ada sehingga bisa langsung dipasang.
+
+**Bug yang diperbaiki.**
+
+- `ui/components/Ui.kt`: subtitle `TintaTopBar` memakai `maxLines = 1` tanpa `TextOverflow.Ellipsis`,
+  sehingga teks panjang terpotong paksa di semua layar; kini berelipsis.
+- `ui/screens/EditorScreen.kt`: placeholder "Tanpa judul" memakai `headlineSmall` (24sp) sementara
+  teks judul asli 25sp Serif SemiBold, membuat judul berubah ukuran saat mulai diketik; disamakan.
+- `ui/TintaApp.kt`: kegagalan menulis berkas ekspor ditelan `runCatching` tanpa pesan; kini muncul toast
+  "Gagal menyimpan berkas." seperti alur ekspor di editor.
+- `util/Spellcheck.kt`: `name.first()` pada nama lore kosong berpotensi `NoSuchElementException`;
+  ditambah penjaga `isNotEmpty()`.
+
+**Belum bisa diverifikasi:** kelancaran dan tampilan sebenarnya tidak terukur tanpa perangkat/emulator;
+release hanya terbukti terkompilasi, ter-minify, dan lolos lint.
+
+---
+
 ## 18 November 2026 — Ganti nama tokoh dari Story Bible & pemeriksa ejaan
 
 **Fitur baru.**

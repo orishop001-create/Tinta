@@ -77,6 +77,7 @@ fun TintaTopBar(
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.muted,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

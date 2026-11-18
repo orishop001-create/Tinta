@@ -665,7 +665,12 @@ fun EditorScreen(
                             if (title.isBlank()) {
                                 Text(
                                     "Tanpa judul",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 25.sp,
+                                        lineHeight = 32.sp,
+                                    ),
                                     color = colors.muted.copy(alpha = 0.7f),
                                 )
                             }
