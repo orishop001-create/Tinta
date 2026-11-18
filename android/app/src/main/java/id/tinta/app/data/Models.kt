@@ -1,10 +1,12 @@
 package id.tinta.app.data
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 val DEFAULT_PHRASES = listOf("“", "”", "—", "…", "Tiba-tiba,", "Sementara itu,")
 
 @Serializable
+@Immutable
 data class Volume(
     val id: String,
     val title: String,
@@ -13,6 +15,7 @@ data class Volume(
 )
 
 @Serializable
+@Immutable
 data class Book(
     val id: String,
     val title: String,
@@ -46,6 +49,7 @@ fun readingOrder(book: Book?, chapters: List<Chapter>): List<Chapter> {
 }
 
 @Serializable
+@Immutable
 data class Chapter(
     val id: String,
     val bookId: String,
@@ -65,6 +69,7 @@ data class Chapter(
 )
 
 @Serializable
+@Immutable
 data class Snapshot(
     val id: String,
     val chapterId: String,
@@ -74,6 +79,7 @@ data class Snapshot(
 )
 
 @Serializable
+@Immutable
 data class DayStat(
     val date: String,
     val words: Int,
@@ -81,6 +87,7 @@ data class DayStat(
 
 /** Satu kartu di Story Bible: karakter, lokasi, atau istilah dunia cerita. */
 @Serializable
+@Immutable
 data class LoreEntry(
     val id: String,
     val bookId: String,
@@ -106,6 +113,7 @@ data class LoreEntry(
 
 /** Catatan pinggir untuk satu kutipan; teks utama tidak ikut diubah. */
 @Serializable
+@Immutable
 data class MarginNote(
     val id: String,
     val bookId: String,
@@ -117,6 +125,7 @@ data class MarginNote(
 )
 
 @Serializable
+@Immutable
 data class Settings(
     val theme: String = "kertas",
     val fontSize: Float = 19f,
@@ -137,6 +146,7 @@ data class Settings(
 )
 
 @Serializable
+@Immutable
 data class AppData(
     val schema: Int = 1,
     val books: List<Book> = emptyList(),

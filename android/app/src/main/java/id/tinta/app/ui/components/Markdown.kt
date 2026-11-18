@@ -2,19 +2,19 @@ package id.tinta.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.AnnotatedString
@@ -27,6 +27,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.tinta.app.ui.theme.LocalTintaColors
+import id.tinta.app.ui.theme.TintaColors
 
 fun inlineMarkdown(text: String): AnnotatedString = buildAnnotatedString {
     var i = 0
@@ -93,109 +94,179 @@ fun inlineMarkdown(text: String): AnnotatedString = buildAnnotatedString {
     }
 }
 
-@Composable
-fun MarkdownPreview(body: String, modifier: Modifier = Modifier) {
-    val colors = LocalTintaColors.current
-    val scroll = rememberScrollState()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(scroll)
-            .padding(horizontal = 22.dp, vertical = 24.dp),
-    ) {
-        if (body.isBlank()) {
-            Text("Pratinjau akan muncul di sini.", color = colors.muted)
+/**
+ * Satu blok tampilan pratinjau. Pratinjau dipecah per blok (paragraf, heading, butir, kutipan)
+ * lalu digambar oleh `LazyColumn`, bukan satu kolom raksasa, sehingga hanya blok yang terlihat
+ * yang diukur dan digambar. Blok tidak berubah selama naskah tidak berubah.
+ */
+private enum class BlockKind { GAP, H1, H2, H3, QUOTE, BULLET, NUMBERED, RULE, TEXT }
+
+private data class PreviewBlock(
+    val kind: BlockKind,
+    val text: String,
+    val marker: String = "",
+)
+
+/** `12. ` di awal baris, atau null bila bukan butir bernomor. */
+private fun numberedPrefix(line: String): String? {
+    val dot = line.indexOf('.')
+    if (dot <= 0 || dot > 6) return null
+    if (!line.take(dot).all { it.isDigit() }) return null
+    if (line.getOrNull(dot + 1) != ' ') return null
+    return line.substring(0, dot + 1)
+}
+
+private fun previewBlocks(body: String): List<PreviewBlock> {
+    val blocks = mutableListOf<PreviewBlock>()
+    val paragraph = StringBuilder()
+
+    fun flush() {
+        if (paragraph.isNotEmpty()) {
+            blocks.add(PreviewBlock(BlockKind.TEXT, paragraph.toString()))
+            paragraph.setLength(0)
         }
-        body.lines().forEach { raw ->
-            val line = raw.trimEnd()
-            when {
-                line.isBlank() -> Spacer(Modifier.height(10.dp))
-                line.startsWith("# ") -> {
-                    Text(
-                        inlineMarkdown(line.removePrefix("# ")),
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = colors.ink,
-                        modifier = Modifier.padding(bottom = 8.dp),
+    }
+
+    body.lines().forEach { raw ->
+        val line = raw.trimEnd()
+        when {
+            line.isBlank() -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.GAP, ""))
+            }
+            line.startsWith("# ") -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.H1, line.removePrefix("# ")))
+            }
+            line.startsWith("## ") -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.H2, line.removePrefix("## ")))
+            }
+            line.startsWith("### ") -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.H3, line.removePrefix("### ")))
+            }
+            line.startsWith("> ") -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.QUOTE, line.removePrefix("> ")))
+            }
+            line.startsWith("- ") || line.startsWith("* ") -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.BULLET, line.drop(2)))
+            }
+            numberedPrefix(line) != null -> {
+                flush()
+                val prefix = numberedPrefix(line)!!
+                blocks.add(
+                    PreviewBlock(
+                        kind = BlockKind.NUMBERED,
+                        text = line.drop(prefix.length).trimStart(),
+                        marker = prefix,
                     )
-                }
-                line.startsWith("## ") -> {
-                    Text(
-                        inlineMarkdown(line.removePrefix("## ")),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = colors.ink,
-                        modifier = Modifier.padding(top = 7.dp, bottom = 5.dp),
-                    )
-                }
-                line.startsWith("### ") -> {
-                    Text(
-                        inlineMarkdown(line.removePrefix("### ")),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.ink,
-                        modifier = Modifier.padding(top = 5.dp, bottom = 4.dp),
-                    )
-                }
-                line.startsWith("> ") -> {
-                    Row(Modifier.padding(vertical = 4.dp)) {
-                        Box(
-                            Modifier
-                                .width(3.dp)
-                                .height(22.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(colors.accent)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            inlineMarkdown(line.removePrefix("> ")),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
-                            color = colors.muted,
-                        )
-                    }
-                }
-                line.startsWith("- ") || line.startsWith("* ") -> {
-                    Row(Modifier.padding(vertical = 3.dp)) {
-                        Text("•", color = colors.accent, fontSize = 18.sp)
-                        Spacer(Modifier.width(9.dp))
-                        Text(
-                            inlineMarkdown(line.drop(2)),
-                            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                            color = colors.ink,
-                        )
-                    }
-                }
-                Regex("^\\d+\\.\\s").containsMatchIn(line) -> {
-                    val dot = line.indexOf('.')
-                    Row(Modifier.padding(vertical = 3.dp)) {
-                        Text(line.take(dot + 1), color = colors.accent, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(7.dp))
-                        Text(
-                            inlineMarkdown(line.drop(dot + 1).trimStart()),
-                            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                            color = colors.ink,
-                        )
-                    }
-                }
-                line == "---" || line == "***" -> {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp)
-                            .height(1.dp)
-                            .background(colors.border)
-                    )
-                }
-                else -> {
-                    Text(
-                        inlineMarkdown(line),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 18.sp,
-                            lineHeight = 28.sp,
-                        ),
-                        color = colors.ink,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                }
+                )
+            }
+            line == "---" || line == "***" -> {
+                flush()
+                blocks.add(PreviewBlock(BlockKind.RULE, ""))
+            }
+            else -> {
+                if (paragraph.isNotEmpty()) paragraph.append('\n')
+                paragraph.append(line)
             }
         }
+    }
+    flush()
+    return blocks
+}
+
+@Composable
+fun MarkdownPreview(body: String, modifier: Modifier = Modifier) {
+    val blocks = remember(body) { previewBlocks(body) }
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 24.dp),
+    ) {
+        if (blocks.isEmpty()) {
+            item { Text("Pratinjau akan muncul di sini.", color = LocalTintaColors.current.muted) }
+        }
+        items(blocks.size, key = { index -> index }) { index ->
+            PreviewBlockView(blocks[index])
+        }
+    }
+}
+
+@Composable
+private fun PreviewBlockView(block: PreviewBlock) {
+    val colors = LocalTintaColors.current
+    when (block.kind) {
+        BlockKind.GAP -> Spacer(Modifier.height(10.dp))
+        BlockKind.H1 -> Text(
+            inlineMarkdown(block.text),
+            style = MaterialTheme.typography.headlineLarge,
+            color = colors.ink,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        BlockKind.H2 -> Text(
+            inlineMarkdown(block.text),
+            style = MaterialTheme.typography.headlineSmall,
+            color = colors.ink,
+            modifier = Modifier.padding(top = 7.dp, bottom = 5.dp),
+        )
+        BlockKind.H3 -> Text(
+            inlineMarkdown(block.text),
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.ink,
+            modifier = Modifier.padding(top = 5.dp, bottom = 4.dp),
+        )
+        BlockKind.QUOTE -> Row(Modifier.padding(vertical = 4.dp)) {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(colors.accent)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                inlineMarkdown(block.text),
+                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+                color = colors.muted,
+            )
+        }
+        BlockKind.BULLET -> Row(Modifier.padding(vertical = 3.dp)) {
+            Text("•", color = colors.accent, fontSize = 18.sp)
+            Spacer(Modifier.width(9.dp))
+            Text(
+                inlineMarkdown(block.text),
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                color = colors.ink,
+            )
+        }
+        BlockKind.NUMBERED -> Row(Modifier.padding(vertical = 3.dp)) {
+            Text(block.marker, color = colors.accent, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(7.dp))
+            Text(
+                inlineMarkdown(block.text),
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                color = colors.ink,
+            )
+        }
+        BlockKind.RULE -> Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .height(1.dp)
+                .background(colors.border)
+        )
+        BlockKind.TEXT -> Text(
+            inlineMarkdown(block.text),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = FontFamily.Serif,
+                fontSize = 18.sp,
+                lineHeight = 28.sp,
+            ),
+            color = colors.ink,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
     }
 }

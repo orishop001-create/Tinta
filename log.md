@@ -4,6 +4,27 @@ Catatan setiap perubahan kode dan penambahan fitur. Entri terbaru di atas.
 
 ---
 
+## 18 November 2026 — Pratinjau markdown per blok dan model data immutable
+
+**Kelancaran menggulir.**
+
+- `ui/components/Markdown.kt`: pratinjau dulu satu `Column(verticalScroll)` yang menggambar seluruh
+  baris naskah sekaligus. Kini naskah dipecah menjadi blok diskret (heading, paragraf, butir,
+  butir bernomor, kutipan, garis) lewat `previewBlocks()`, lalu digambar `LazyColumn` dengan kunci
+  stabil per indeks, sehingga hanya blok yang terlihat yang diukur dan digambar. Paragraf yang
+  berurutan digabung menjadi satu blok agar jumlah item tidak membengkak. Hasil parse disimpan
+  lewat `remember(body)` agar tidak diulang saat recomposition.
+- `data/Models.kt`: `Volume`, `Book`, `Chapter`, `Snapshot`, `DayStat`, `LoreEntry`, `MarginNote`,
+  `Settings`, dan `AppData` ditandai `@Immutable`. Sebelumnya Compose menganggapnya tidak stabil
+  karena memuat `List`, sehingga setiap item daftar (Setelan, pustaka, daftar bab) ikut dikomposisi
+  ulang saat satu nilai berubah. Semua kelas ini memang hanya berisi `val` dan store selalu
+  membuat salinan baru, jadi penandaan ini aman.
+
+**Catatan.** R8 sudah aktif sejak commit sebelumnya. Baseline Profile AOT belum ditambahkan karena
+butuh modul macrobenchmark dan pengukuran di perangkat, yang tidak tersedia di lingkungan ini.
+
+---
+
 ## 18 November 2026 — Build release ber-R8 dan perbaikan bug hasil audit
 
 **Build release.** `android/app/build.gradle.kts`: `isMinifyEnabled = true`, `isShrinkResources = true`,
